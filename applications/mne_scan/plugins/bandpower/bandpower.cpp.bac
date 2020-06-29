@@ -1,0 +1,468 @@
+//=============================================================================================================
+/**
+ * @file     bandpower.cpp
+ * @author   Johannes Vorwerk <johannes.vorwerk@umit.at>;
+ *           Gabriel B Motta <gabrielbenmotta@gmail.com>;
+ *           Lorenz Esch <lesch@mgh.harvard.edu>
+ * @version  dev
+ * @date     April, 2020
+ *
+ * @section  LICENSE
+ *
+ * Copyright (C) 2020, Johannes Vorwerk, Gabriel B Motta, Lorenz Esch. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
+ * the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright notice, this list of conditions and the
+ *       following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
+ *       the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *     * Neither the name of MNE-CPP authors nor the names of its contributors may be used
+ *       to endorse or promote products derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+ * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ *
+ * @brief    Definition of the BandPower class.
+ *
+ */
+
+//=============================================================================================================
+// INCLUDES
+//=============================================================================================================
+
+#include "bandpower.h"
+
+//#include "FormFiles/spectrumsetupwidget.h"
+
+#include <fiff/fiff_constants.h>
+#include <fiff/fiff.h>
+
+#include <chrono>
+
+//=============================================================================================================
+// USED NAMESPACES
+//=============================================================================================================
+
+using namespace BANDPOWERPLUGIN;
+using namespace SCMEASLIB;
+using namespace UTILSLIB;
+using namespace IOBUFFER;
+//using namespace DISPLIB;
+//using namespace RTPROCESSINGLIB;
+using namespace FIFFLIB;
+using namespace SCSHAREDLIB;
+using namespace Eigen;
+
+//=============================================================================================================
+// DEFINE MEMBER METHODS
+//=============================================================================================================
+
+BandPower::BandPower()
+    : m_bIsRunning(false)
+    , m_bProcessData(false)
+    , m_pBandPowerInput(NULL)
+    , m_pBandPowerOutput(NULL)
+    , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
+    , m_iIntervallLengthFactor(8)
+    , m_iResolutionFactorFFT(1)
+    , m_iOrderAR(15)
+    , m_iEvalsAR(256)
+    , m_sSpectrumMethod("AR")
+    , m_dDataSampFreq(-1)
+    , m_dFreqMin(0)
+    , m_dFreqMax(256)
+    , m_iNTimeSteps(-1)
+    , m_iNChannels(-1)
+{
+}
+
+//=============================================================================================================
+
+BandPower::~BandPower()
+{
+    if(this->isRunning())
+        stop();
+}
+
+//=============================================================================================================
+
+QSharedPointer<IPlugin> BandPower::clone() const
+{
+    QSharedPointer<BandPower> pBandPowerClone(new BandPower);
+    return pBandPowerClone;
+}
+
+//=============================================================================================================
+
+void BandPower::init()
+{
+    // Input
+    m_pBandPowerInput = PluginInputData<RealTimeMultiSampleArray>::create(this, "BandPowerIn", "BandPower input data");
+    connect(m_pBandPowerInput.data(), &PluginInputConnector::notify, this, &BandPower::update, Qt::DirectConnection);
+    m_inputConnectors.append(m_pBandPowerInput);
+
+    // Output - Uncomment this if you don't want to send processed data (in form of a matrix) to other plugins.
+    // Also, this output stream will generate an online display in your plugin
+    m_pBandPowerOutput = PluginOutputData<RealTimeMultiSampleArray>::create(this, "BandPowerOut", "BandPower output data");
+    m_pBandPowerOutput->data()->setName(this->getName());//Provide name to auto store widget settings
+    m_pBandPowerOutput->data()->setMultiArraySize(1);
+
+    m_outputConnectors.append(m_pBandPowerOutput);
+
+    //Delete Buffer - will be initailzed with first incoming data
+    if(!m_pBandPowerBuffer.isNull())
+        m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
+}
+
+//=============================================================================================================
+
+void BandPower::unload()
+{
+}
+
+//=============================================================================================================
+
+bool BandPower::start()
+{
+//    //Check if the thread is already or still running. This can happen if the start button is pressed immediately after the stop button was pressed. In this case the stopping process is not finished yet but the start process is initiated.
+//    if(this->isRunning())
+//        QThread::wait();
+
+    m_bIsRunning = true;
+
+    //Start thread
+    QThread::start();
+
+    return true;
+}
+
+
+//=============================================================================================================
+
+bool BandPower::stop()
+{
+    m_bIsRunning = false;
+
+    //m_pBandPowerBuffer->releaseFromPop();
+    //m_pBandPowerBuffer->releaseFromPush();
+
+    m_pBandPowerBuffer->clear();
+
+    return true;
+}
+
+//=============================================================================================================
+
+IPlugin::PluginType BandPower::getType() const
+{
+    return _IAlgorithm;
+}
+
+//=============================================================================================================
+
+QString BandPower::getName() const
+{
+    return "BandPower";
+}
+
+//=============================================================================================================
+
+QWidget* BandPower::setupWidget()
+{
+    //QWidget* setupWidget = new SpectrumSetupWidget(this);//widget is later distroyed by CentralWidget - so it has to be created everytime new
+    QWidget* setupWidget = new QWidget();//widget is later distroyed by CentralWidget - so it has to be created everytime new
+    return setupWidget;
+}
+
+//=============================================================================================================
+
+void BandPower::changeIntervallLengthFactor(quint32 lengthfactor)
+{
+    m_iIntervallLengthFactor = lengthfactor;
+    //if(m_pRtCov) {
+    //    m_pRtCov->setSamples(m_iEstimationSamples);
+    //}
+}
+
+//=============================================================================================================
+
+void BandPower::changeResolutionFactor(quint32 resolutionfactor)
+{
+    m_iResolutionFactorFFT = resolutionfactor;
+    //if(m_pRtCov) {
+    //    m_pRtCov->setSamples(m_iEstimationSamples);
+    //}
+}
+
+//=============================================================================================================
+
+double BandPower::bandpowerFromSpectrumEntries(const Eigen::VectorXd &spectrumentries, double stepsize)
+{
+    double power;
+
+    if (spectrumentries.size() % 2 == 0){
+        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size());
+        for (int i=0; i<spectrumentries.size()/2; i++)
+            weights(2*i+1) = 4.0;
+        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
+            weights(2*i+2) = 2.0;
+        power =  weights * spectrumentries;
+        power *= (stepsize / 3.0);
+    } else {
+        // Use Simpson's rule for n-1 entries and trapezoid rule for the last intervall and average over 2 cases
+        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size() - 1);
+        for (int i=0; i<spectrumentries.size()/2; i++)
+            weights(2*i+1) = 4.0;
+        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
+            weights(2*i+2) = 2.0;
+        power = weights * spectrumentries.head(spectrumentries.size()-1);
+        power = weights * spectrumentries.tail(spectrumentries.size()-1);
+        power += stepsize/2.0 * (spectrumentries(0) + spectrumentries(1) + spectrumentries(spectrumentries.size()-2) + spectrumentries(spectrumentries.size()-1));
+        power *= 0.5;
+    }
+
+    return power;
+}
+
+
+//=============================================================================================================
+
+void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
+{
+    QSharedPointer<RealTimeMultiSampleArray> pRTMSA = pMeasurement.dynamicCast<RealTimeMultiSampleArray>();
+
+    if(pRTMSA) {
+        //Check if buffer initialized
+        if(!m_pBandPowerBuffer) {
+            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
+        }
+
+        //Fiff information
+        if(!m_pFiffInfo) {
+
+            m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer shit not working here...
+            //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
+
+            //Init output - Uncomment this if you also uncommented the m_pDummyOutput in the constructor above
+            //m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
+
+            m_dDataSampFreq = m_pFiffInfo->sfreq;
+
+            m_pFiffInfo->filename = "";
+            m_pFiffInfo->bads.clear();
+            m_pFiffInfo->nchan = 1;
+
+            QList<FiffChInfo> fakeChList;
+            FiffChInfo fakeCh;
+            fakeCh.ch_name = "BPWR";
+            fakeCh.kind = 502;
+            fakeCh.range = 1e-24;
+            //fakeCh.setMinValue(0.5e-20);
+            //fakeCh.setMaxValue(2e-20);
+            fakeCh.unit = -1;
+            fakeChList.append(fakeCh);
+            m_pFiffInfo->chs = fakeChList;
+
+            QStringList fakeChNames = {"BPWR"};
+            m_pFiffInfo->ch_names = fakeChNames;
+
+            m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
+
+            m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/pRTMSA->getMultiSampleArray().first().cols();
+
+            m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
+            //m_pBandPowerOutput->data()->init(fakeChList);
+
+            m_pBandPowerOutput->data()->setVisibility(true);
+        }
+
+        // Check if data is present
+        if(pRTMSA->getMultiSampleArray().size() > 0) {
+            //Init widgets
+            if(m_iNChannels == -1) {
+                m_iNChannels = pRTMSA->getMultiSampleArray().first().rows();
+                //initPluginControlWidgets();
+             //   QThread::start();
+            }
+            if(m_iNTimeSteps == -1)
+                m_iNTimeSteps = pRTMSA->getMultiSampleArray().first().cols();
+
+            for(unsigned char i = 0; i < pRTMSA->getMultiSampleArray().size(); ++i) {
+                // Please note that we do not need a copy here since this function will block until
+                // the buffer accepts new data again. Hence, the data is not deleted in the actual
+                // Measurement function after it emitted the notify signal.
+                while(!m_pBandPowerBuffer->push(pRTMSA->getMultiSampleArray()[i])) {
+                    //Do nothing until the circular buffer is ready to accept new data again
+                }
+            }
+        }
+    }
+}
+
+
+//=============================================================================================================
+
+void BandPower::run()
+{
+    //
+    // Wait for Fiff Info
+    //
+    while(!m_pFiffInfo) {
+        msleep(10);// Wait for fiff Info
+    }
+
+    //
+    // Create storage for data intervall
+    //
+
+    MatrixXd t_intervall;
+
+    // Length of block
+    int iNSamples = m_iNTimeSteps * m_iIntervallLengthFactor;
+
+    // Sampling frequency
+    double dSampFreq = m_dDataSampFreq;
+
+    qDebug() << "dSampFreq" << dSampFreq;
+
+    // Determine spectrum resolution - calculation only for FFT, but we keep it for both methods here to keep the resolution
+    int iNfft = static_cast<int> (iNSamples / m_iResolutionFactorFFT);
+
+    //int counter = 0;
+    int t_all(0), t_pop(0), t_weights(0), t_coeffs(0), t_spectra(0), t_mean(0), t_bandpower(0);
+
+    MatrixXd t_NSampleMat(m_iNChannels,iNSamples);
+
+    for(int i=0; i<m_iIntervallLengthFactor-1;++i){
+        MatrixXd t_mat;
+        while(!m_pBandPowerBuffer->pop(t_mat));
+        //check for size!
+        t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_mat;
+    }
+
+    while(m_bIsRunning)
+    {
+        auto start = std::chrono::steady_clock::now();
+        auto start_all = std::chrono::steady_clock::now();
+
+        qDebug() << "1";
+
+        //Dispatch the inputs
+        MatrixXd t_mat;
+        while(!m_pBandPowerBuffer->pop(t_mat));
+        t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
+
+        auto end = std::chrono::steady_clock::now();
+        t_pop += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+        QVector<VectorXd> matSpectrum;
+        double stepwidth = 0;
+
+        if(m_sSpectrumMethod=="AR"){
+            start = std::chrono::steady_clock::now();
+            MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iEvalsAR, 1);
+            end = std::chrono::steady_clock::now();
+            t_weights += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+            start = std::chrono::steady_clock::now();
+            QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_NSampleMat,15,true);
+            end = std::chrono::steady_clock::now();
+            t_coeffs += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+            start = std::chrono::steady_clock::now();
+            matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true); // has to be extended for multiple rows!
+            end = std::chrono::steady_clock::now();
+            t_spectra += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+            stepwidth = (m_dFreqMax - m_dFreqMin)/(m_iEvalsAR - 1); //check where the evaluation points lie
+
+        } else if(m_sSpectrumMethod=="FFT") {
+            // Generate hanning window
+            QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
+            MatrixXd matTaps = tapers.first;
+            VectorXd vecTapWeights = tapers.second;
+
+            // Compute Spectrum
+            QVector<MatrixXcd> matTaperedSpectrum;
+            matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(t_NSampleMat, matTaps, iNfft, true);
+
+            QVector<VectorXd> matSpectrumFull = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNfft, dSampFreq, true);
+
+            // Select frequencies that fall within the band
+            Eigen::VectorXd FFTFreqs = Spectral::calculateFFTFreqs(iNfft,dSampFreq);
+
+            int minIndex, maxIndex;
+
+            Eigen::VectorXd FFTFreqsMin = FFTFreqs;
+            FFTFreqsMin.array() -= m_dFreqMin;
+            FFTFreqsMin.cwiseAbs().minCoeff(&minIndex);
+
+            Eigen::VectorXd FFTFreqsMax = FFTFreqs;
+            FFTFreqsMax.array() -= m_dFreqMax;
+            FFTFreqsMax.cwiseAbs().minCoeff(&maxIndex);
+
+            qDebug() << "minIndex" << minIndex << "maxIndex" << maxIndex;
+
+            for (QVector<Eigen::VectorXd>::iterator it = matSpectrumFull.begin(); it != matSpectrumFull.end(); ++it)
+                matSpectrum.append(it->segment(minIndex,maxIndex - minIndex)); //check second entry
+
+            stepwidth = FFTFreqs(1) - FFTFreqs(0);
+        }
+
+        //Compute Mean Spectrum
+        start = std::chrono::steady_clock::now();
+        VectorXd matSpectrumMean = VectorXd::Zero(matSpectrum.at(0).size());
+
+        //for (int i = 0; i < matSpectrum.size(); ++i) {
+        for (int i = 0; i < 10; ++i) {
+            matSpectrumMean += matSpectrum.at(i);
+        }
+
+        //matSpectrumMean /= static_cast<double>(matSpectrum.size());
+        matSpectrumMean /= 10.0;
+
+        end = std::chrono::steady_clock::now();
+        t_mean += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+        MatrixXd meanbandpower(1,1);
+        start = std::chrono::steady_clock::now();
+        meanbandpower(0,0) = bandpowerFromSpectrumEntries(matSpectrumMean,stepwidth);
+        end = std::chrono::steady_clock::now();
+        t_bandpower += std::chrono::duration_cast<std::chrono::milliseconds> (end-start).count();
+
+        end = std::chrono::steady_clock::now();
+        t_all += std::chrono::duration_cast<std::chrono::milliseconds> (end-start_all).count();
+
+        //Send the data to the connected plugins and the online display
+        m_pBandPowerOutput->data()->setValue(1e-14*meanbandpower);
+
+        qDebug() << "Power:" << meanbandpower(0,0);
+
+        /*++counter;
+
+        if(counter == 10){
+            qDebug() << "Elapsed time:" << t_pop/10 << " " << t_weights/10 << " " << t_coeffs/10 << " " << t_spectra/10 << " " << t_mean << " " << t_bandpower/10;
+            qDebug() << "Overall time:" << t_all/10;
+            t_pop = 0;
+            t_weights = 0;
+            t_coeffs = 0;
+            t_spectra = 0;
+            t_bandpower = 0;
+            t_all = 0;
+            counter = 0;
+        }*/
+
+        //move matrix entries one block to the left
+        for(int i=0; i<m_iIntervallLengthFactor-1; ++i)
+            t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+    }
+}
+

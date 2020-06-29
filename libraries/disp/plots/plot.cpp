@@ -154,7 +154,7 @@ void Plot::paintEvent(QPaintEvent *event)
         pen.setWidth(1);
         pen.setBrush(Qt::blue);
         painter.setPen(pen);
-        painter.translate(m_iBorderLeftRight-m_dMinX,m_iBorderTopBottom+t_qSizePlot.height()/2);
+        painter.translate(m_iBorderLeftRight-m_dMinX,m_iBorderTopBottom+t_qSizePlot.height()*0.05);
         for(qint32 i = 0; i < m_qListVecPointFPaths.size(); ++i)
         {
             double scale_x = t_qSizePlot.width()/(m_dMaxX - m_dMinX);
@@ -164,7 +164,7 @@ void Plot::paintEvent(QPaintEvent *event)
             QVector<QPointF> t_qVecPointFPath;
             QVector<QPointF>::ConstIterator it;
             for(it = m_qListVecPointFPaths[i].begin(); it != m_qListVecPointFPaths[i].end(); ++it)
-                t_qVecPointFPath.append(QPointF(it->x()*scale_x, it->y()*scale_y));
+                t_qVecPointFPath.append(QPointF(it->x()*scale_x, (it->y()-m_dMinY)*scale_y));
 
             //draw
             for(it = t_qVecPointFPath.begin()+1; it != t_qVecPointFPath.end(); ++it)

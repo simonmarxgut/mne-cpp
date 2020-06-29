@@ -123,11 +123,11 @@ QVariant FrequencySpectrumModel::data(const QModelIndex &index, int role) const
                     else
                     {
                         // data
+                        qDebug() << "FSM::data" << m_dataCurrent.rows() << m_dataCurrent.cols();
                         vec = m_dataCurrent.row(r);
                         v.setValue(vec);
                     }
                     return v;
-                    break;
                 }
                 case Qt::BackgroundRole: {
 //                    if(m_fiffInfo.bads.contains(m_chInfolist[row].ch_name)) {
@@ -205,6 +205,8 @@ void FrequencySpectrumModel::setScaleType(qint8 ScaleType)
 void FrequencySpectrumModel::addData(const MatrixXd &data)
 {
     m_dataCurrent = data;
+
+    qDebug() << "FSM::addData" << data.rows() << data.cols();
 
     if(m_vecFreqScale.size() != m_dataCurrent.cols() && m_pFiffInfo)
     {

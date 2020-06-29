@@ -144,6 +144,16 @@ public:
 
     //=========================================================================================================
     /**
+     * Select channels
+     * This function selects channels which were selected outside this selection manager (i.e in the DataWindow's Table View)
+     * without emitting signal "selectionChanged"
+     *
+     * @param [in] channelList channels which are be to set as selected
+     */
+    void selectChannelsMuted(QStringList channelList);
+
+    //=========================================================================================================
+    /**
      * Current selected channels
      * This function returns the current channel selection
      */
@@ -207,6 +217,21 @@ public:
      *
      */
     void updateDataView();
+
+    //=========================================================================================================
+    /**
+     * Sets the list of user selected channels - for sync with dataview.
+     *
+     * @param [in] channelList channels which are be to set as selected
+     */
+    void setUserSelection(QStringList channelList);
+
+    //=========================================================================================================
+    /**
+     * Resets the list of user selected channels.
+     *
+     */
+    void resetUserSelection();
 
     //=========================================================================================================
     /**

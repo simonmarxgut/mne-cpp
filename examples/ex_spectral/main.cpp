@@ -43,6 +43,8 @@
 #include <utils/generics/applicationlogger.h>
 #include <mne/mne.h>
 
+#include <random>
+
 //=============================================================================================================
 // Eigen
 //=============================================================================================================
@@ -83,18 +85,41 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
 
     // Generate input data
-    int iNSamples = 500;
-    double dSampFreq = 23.0;
-    MatrixXd inputData = MatrixXd::Random(2, iNSamples);
+    int iNSamples = 256;
+    double dSampFreq = 512.0;
+
+    //Generate noise
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(0.0,10.0);
+
+    MatrixXd inputData = MatrixXd::Zero(2, iNSamples);
     for (int n = 0; n < iNSamples; n++) {
-        inputData(0, n) += 10.0 * sin(2.0 * M_PI *  10. * n / iNSamples );
+/*        inputData(0, n) += 10.0 * sin(2.0 * M_PI *  10. * n / iNSamples );
         inputData(0, n) += 10.0 * sin(2.0 * M_PI * 100. * n / iNSamples);
         inputData(0, n) += 10.0 * sin(2.0 * M_PI * 200. * n / iNSamples);
 
         inputData(1, n) += 10.0 * sin(2.0 * M_PI *  50. * n / iNSamples);
         inputData(1, n) += 10.0 * sin(2.0 * M_PI * 100. * n / iNSamples);
-        inputData(1, n) += 10.0 * sin(2.0 * M_PI * 150. * n / iNSamples);
+        inputData(1, n) += 10.0 * sin(2.0 * M_PI * 150. * n / iNSamples);*/
+
+        inputData(0, n) += 20.0 * sin(2.0 * M_PI * 10. * n / dSampFreq);
+        inputData(0, n) += 10.0 * sin(2.0 * M_PI * 20. * n / dSampFreq);
+        inputData(0, n) += 10.0 * sin(2.0 * M_PI * 100. * n / dSampFreq);
+        inputData(0, n) += distribution(generator);
+
+        inputData(1, n) += 10.0 * sin(2.0 * M_PI *  50. * n / dSampFreq);
+        inputData(1, n) += 10.0 * sin(2.0 * M_PI * 100. * n / dSampFreq);
+        inputData(1, n) += 10.0 * sin(2.0 * M_PI * 150. * n / dSampFreq);
     }
+
+    //Plot data
+    VectorXd data = inputData.row(0);
+    Plot plotData(data);
+    plotData.setTitle("Data");
+    plotData.setXLabel("X Axes");
+    plotData.setYLabel("Y Axis");
+    plotData.setWindowTitle("Data");
+    plotData.show();
 
     //Generate hanning window
     QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
@@ -102,13 +127,13 @@ int main(int argc, char *argv[])
     VectorXd vecTapWeights = tapers.second;
 
     //Plot hanning window
-    VectorXd hann = matTaps.row(0).transpose();
+    /*VectorXd hann = matTaps.row(0).transpose();
     Plot plotWindow(hann);
     plotWindow.setTitle("Hanning window");
     plotWindow.setXLabel("X Axes");
     plotWindow.setYLabel("Y Axes");
     plotWindow.setWindowTitle("Corresponding function to MATLABs plot");
-    plotWindow.show();
+    plotWindow.show();*/
 
     //Compute Spectrum of first row of input data
     int iNfft = iNSamples;
@@ -126,6 +151,23 @@ int main(int argc, char *argv[])
     plotPsd.setWindowTitle("Corresponding function to MATLABs plot");
     plotPsd.show();
 
+    //Compute PSD AR
+    MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(0/dSampFreq,256/dSampFreq,iNfft,1);
+    QPair<VectorXd, double> ARCoeffs = Spectral::calculateARWeightsMEMRow(inputData.row(0),40); // has to be extended for multiple rows!
+
+    qDebug() << "AR power" << ARCoeffs.second;
+
+    VectorXd vecSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq); // has to be extended for multiple rows!
+
+    //Plot PSD AR
+    VectorXd psdar = vecSpectrum.transpose();
+    Plot plotPsdar(psdar);
+    plotPsdar.setTitle("PSD AR of Row 0");
+    plotPsdar.setXLabel("X Axes");
+    plotPsdar.setYLabel("Y Axes");
+    plotPsdar.setWindowTitle("Corresponding function to MATLABs plot");
+    plotPsdar.show();
+
     //Check PSD
     VectorXd psdTest = matTapSpectrumSeed.row(0).cwiseAbs2().transpose();
     psdTest *= 2.0;
@@ -136,13 +178,15 @@ int main(int argc, char *argv[])
     //Normalization
     psdTest /= dSampFreq;
 
+    qDebug() << "psd max" << vecPsd.array().abs().maxCoeff() << vecSpectrum.array().abs().maxCoeff();
+
     //Plot PSDTest
-    Plot plotPsdTest(psdTest);
+    /*Plot plotPsdTest(psdTest);
     plotPsdTest.setTitle("PSD of Row 0");
     plotPsdTest.setXLabel("X Axes");
     plotPsdTest.setYLabel("Y Axes");
     plotPsdTest.setWindowTitle("Corresponding function to MATLABs plot");
-    plotPsdTest.show();
+    plotPsdTest.show();*/
 
     //Compute CSD of matTapSpectrumSeed and matTapSpectrumSeed
     //The real part should be equivalent to the PSD of matTapSpectrumSeed)
@@ -150,17 +194,18 @@ int main(int argc, char *argv[])
     VectorXd psdTest2 = vecCsdSeed.real();
 
     //Plot PSDTest2
-    Plot plotPsdTest2(psdTest2);
+    /*Plot plotPsdTest2(psdTest2);
     plotPsdTest2.setTitle("PSD of Row 0");
     plotPsdTest2.setXLabel("X Axes");
     plotPsdTest2.setYLabel("Y Axes");
     plotPsdTest2.setWindowTitle("Corresponding function to MATLABs plot");
-    plotPsdTest2.show();
+    plotPsdTest2.show();*/
 
     //Check that sums of different psds of the same signal are equal
     qDebug()<<psd.sum();
     qDebug()<<psdTest.sum();
     qDebug()<<psdTest2.sum();
+    qDebug()<<psdar.sum();
     RowVectorXd data_hann = inputData.row(0).cwiseProduct(matTaps.row(0));
     qDebug()<<data_hann.row(0).cwiseAbs2().sum() * double(iNSamples) / dSampFreq;
 

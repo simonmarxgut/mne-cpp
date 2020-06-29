@@ -178,7 +178,7 @@ QSize FrequencySpectrumDelegate::sizeHint(const QStyleOptionViewItem &option, co
         size = QSize(20,option.rect.height());
         break;
     case 1:
-        RowVectorXd data = index.model()->data(index).value< RowVectorXd >();
+        //RowVectorXd data = index.model()->data(index).value< RowVectorXd >();
 //        qint32 nsamples = (static_cast<const FrequencySpectrumModel*>(index.model()))->lastSample()-(static_cast<const FrequencySpectrumModel*>(index.model()))->firstSample();
 
 //        size = QSize(nsamples*m_dDx,m_dPlotHeight);

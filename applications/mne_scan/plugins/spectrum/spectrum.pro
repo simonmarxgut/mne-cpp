@@ -1,14 +1,14 @@
 #==============================================================================================================
 #
-# @file     scDisp.pro
+# @file     spectrum.pro
 # @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
 #           Lorenz Esch <lesch@mgh.harvard.edu>
-# @since    0.1.0
-# @date     July, 2012
+# @version  dev
+# @date     April, 2020
 #
 # @section  LICENSE
 #
-# Copyright (C) 2012, Christoph Dinh, Lorenz Esch. All rights reserved.
+# Copyright (C) 2020, Christoph Dinh, Lorenz Esch. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that
 # the following conditions are met:
@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# @brief    This project file builds the scDisp library.
+# @brief    This project file generates the makefile for the noisereduction plug-in.
 #
 #==============================================================================================================
 
@@ -37,97 +37,80 @@ include(../../../../mne-cpp.pri)
 
 TEMPLATE = lib
 
-QT += widgets concurrent xml svg 3dextras opengl
+CONFIG += plugin
 
-CONFIG += skip_target_version_ext
+DEFINES += SPECTRUM_PLUGIN
 
-DEFINES += SCDISP_LIBRARY
+QT += core widgets
 
-DESTDIR = $${MNE_LIBRARY_DIR}
-
-TARGET = scDisp
+TARGET = spectrum
 CONFIG(debug, debug|release) {
     TARGET = $$join(TARGET,,,d)
 }
 
-contains(MNECPP_CONFIG, noQOpenGLWidget) {
-    DEFINES += NO_QOPENGLWIDGET
+# The following define makes your compiler emit warnings if you use
+# any feature of Qt which has been marked as deprecated (the exact warnings
+# depend on your compiler). Please consult the documentation of the
+# deprecated API in order to know how to port your code away from it.
+DEFINES += QT_DEPRECATED_WARNINGS
+
+# You can also make your code fail to compile if you use deprecated APIs.
+# In order to do so, uncomment the following line.
+# You can also select to disable deprecated APIs only up to a certain version of Qt.
+#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
+SOURCES += \
+        spectrum.cpp
+
+HEADERS += \
+        spectrum.h \
+        spectrum_global.h   
+
+FORMS +=
+
+unix {
+    target.path = /usr/lib
+    INSTALLS += target
 }
 
-contains(MNECPP_CONFIG, static) {
-    CONFIG += staticlib
-    DEFINES += STATICBUILD
-} else {
-    CONFIG += shared
-}
+DESTDIR = $${MNE_BINARY_DIR}/mne_scan_plugins
 
 LIBS += -L$${MNE_LIBRARY_DIR}
 CONFIG(debug, debug|release) {
-    LIBS += -lscMeasd \
-            -lmnecppDisp3Dd \
-            -lmnecppDispd \
-            -lmnecppEventsd \
-            -lmnecppRtProcessingd \
-            -lmnecppConnectivityd \
-            -lmnecppInversed \
-            -lmnecppFwdd \
-            -lmnecppMned \
+    LIBS += -lmnecppUtilsd \
             -lmnecppFiffd \
-            -lmnecppFsd \
-            -lmnecppUtilsd \
+            -lscMeasd \
+            -lscDispd \
+            -lscSharedd
 } else {
-    LIBS += -lscMeas \
-            -lmnecppDisp3D \
-            -lmnecppDisp \
-            -lmnecppEvents \
-            -lmnecppRtProcessing \
-            -lmnecppConnectivity \
-            -lmnecppInverse \
-            -lmnecppFwd \
-            -lmnecppMne \
+    LIBS += -lmnecppUtils \
             -lmnecppFiff \
-            -lmnecppFs \
-            -lmnecppUtils \
+            -lscMeas \
+            -lscDisp \
+            -lscShared
 }
 
-SOURCES += \
-    measurementwidget.cpp \
-    realtimemultisamplearraywidget.cpp \
-    realtimeevokedsetwidget.cpp \
-    realtimecovwidget.cpp \
-    realtimespectrumwidget.cpp \
-    realtime3dwidget.cpp \
-    realtimespectrumwidgetnew.cpp \
-
-HEADERS += \
-    realtimespectrumwidgetnew.h \
-    scdisp_global.h \
-    measurementwidget.h \
-    realtimemultisamplearraywidget.h \
-    realtimeevokedsetwidget.h \
-    realtimecovwidget.h \
-    realtimespectrumwidget.h \
-    realtime3dwidget.h \
-    realtimespectrumwidgetnew.h \
-
-RESOURCES += \
-    scDisp.qrc
-
-clang {
-    QMAKE_CXXFLAGS += -isystem $${EIGEN_INCLUDE_DIR} 
-} else {
-    INCLUDEPATH += $${EIGEN_INCLUDE_DIR} 
-}
+INCLUDEPATH += $${EIGEN_INCLUDE_DIR}
 INCLUDEPATH += $${MNE_INCLUDE_DIR}
 INCLUDEPATH += $${MNE_SCAN_INCLUDE_DIR}
 
-win32:!contains(MNECPP_CONFIG, static) {
-    QMAKE_POST_LINK += $$QMAKE_COPY $$shell_path($${MNE_LIBRARY_DIR}/$${TARGET}.dll) $${MNE_BINARY_DIR}
+#OTHER_FILES += dummytoolbox.json
+
+# Put generated form headers into the origin --> cause other src is pointing at them
+UI_DIR = $$PWD
+
+unix: QMAKE_CXXFLAGS += -isystem $$EIGEN_INCLUDE_DIR
+
+# suppress visibility warnings
+unix: QMAKE_CXXFLAGS += -Wno-attributes
+
+unix:!macx {
+    # Unix
+    QMAKE_RPATHDIR += $ORIGIN/../../lib
 }
 
-macx {
-    QMAKE_LFLAGS_SONAME = -Wl,-install_name,@rpath/
-}
+OTHER_FILES += \
+    spectrum.json
 
 # Activate FFTW backend in Eigen for non-static builds only
 contains(MNECPP_CONFIG, useFFTW):!contains(MNECPP_CONFIG, static) {

@@ -198,6 +198,12 @@ void RealTimeMultiSampleArrayWidget::initDisplayControllWidgets()
         connect(m_pChannelDataView.data(), &RtFiffRawView::channelMarkingChanged,
                 m_pChannelSelectionView.data(), &ChannelSelectionView::updateBadChannels);
 
+        connect(m_pChannelDataView.data(), &RtFiffRawView::selectedChannelsChanged,
+                m_pChannelSelectionView.data(), &ChannelSelectionView::setUserSelection);
+
+        connect(m_pChannelDataView.data(), &RtFiffRawView::selectedChannelsResetted,
+                m_pChannelSelectionView.data(), &ChannelSelectionView::resetUserSelection);
+
         m_pChannelInfoModel->layoutChanged(m_pChannelSelectionView->getLayoutMap());
 
         //Init control widgets

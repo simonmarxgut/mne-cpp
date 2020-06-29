@@ -597,11 +597,13 @@ void RtFiffRawView::channelContextMenu(QPoint pos)
 
 void RtFiffRawView::applySelection()
 {
+    QStringList qStringListCurrentSelection;
     //Hide non selected channels/rows in the data views
     for(int i = 0; i<m_pModel->rowCount(); i++) {
         //if channel is a bad channel and bad channels are to be hidden -> do not show
         if(m_qListCurrentSelection.contains(i)) {
             m_pTableView->showRow(i);
+            qStringListCurrentSelection.append(m_pModel->data(m_pModel->index(i, 0), Qt::DisplayRole).toString());
         } else {
             m_pTableView->hideRow(i);
         }
@@ -609,6 +611,8 @@ void RtFiffRawView::applySelection()
 
     //Update the visible channel list which are to be filtered
     //visibleRowsChanged();
+
+    emit selectedChannelsChanged(qStringListCurrentSelection);
 
     //m_pModel->selectRows(m_qListCurrentSelection);
 }
@@ -642,6 +646,8 @@ void RtFiffRawView::resetSelection()
 
     //Update the visible channel list which are to be filtered
     //visibleRowsChanged();
+
+    emit selectedChannelsResetted();
 }
 
 //=============================================================================================================

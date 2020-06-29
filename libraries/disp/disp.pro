@@ -101,6 +101,8 @@ SOURCES += \
     plots/helpers/colormap.cpp \
     viewers/abstractview.cpp \
     viewers/applytoview.cpp \
+    viewers/arsettingsview.cpp \
+    viewers/bandpowersettingsview.cpp \
     viewers/coregsettingsview.cpp \
     viewers/dipolefitview.cpp \
     viewers/filterdesignview.cpp \
@@ -160,6 +162,8 @@ HEADERS += \
     plots/helpers/colormap.h \
     viewers/abstractview.h \
     viewers/applytoview.h \
+    viewers/arsettingsview.h \
+    viewers/bandpowersettingsview.h \
     viewers/coregsettingsview.h \
     viewers/dipolefitview.h \
     viewers/filterdesignview.h \
@@ -223,6 +227,8 @@ qtHaveModule(charts) {
 }
 
 FORMS += \
+    viewers/formfiles/arsettingsview.ui \
+    viewers/formfiles/bandpowersettingsview.ui \
     viewers/formfiles/dipolefitview.ui \
     viewers/formfiles/filterdesignview.ui \
     viewers/formfiles/channelselectionview.ui \

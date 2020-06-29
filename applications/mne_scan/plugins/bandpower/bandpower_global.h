@@ -1,0 +1,12 @@
+#ifndef BANDPOWER_GLOBAL_H
+#define BANDPOWER_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(BANDPOWER_PLUGIN)
+#  define BANDPOWERSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define BANDPOWERSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // BANDPOWER_GLOBAL_H

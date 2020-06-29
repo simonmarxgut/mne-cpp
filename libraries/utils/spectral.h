@@ -72,6 +72,11 @@ struct TaperedSpectraInputData {
     int iNfft;
 };
 
+struct ARWeightsMEMInputData {
+    Eigen::RowVectorXd vecData;
+    int iOrder;
+};
+
 //=============================================================================================================
 /**
  * Computes spectral measures of input data such as spectra, power spectral density, cross-spectral density.
@@ -156,6 +161,25 @@ public:
 
     //=========================================================================================================
     /**
+     * Calculates the power spectral density of given tapered spectrum
+     *
+     * @param[in] vecTapSpectrum    Vector of tapered spectra, for which the PSD is calculated
+     * @param[in] vecTapWeights     taper weights
+     * @param[in] iNfft             FFT length
+     * @param[in] dSampFreq         sampling frequency of the input data
+     *
+     * @return power spectral density of a given tapered spectrum
+     */
+
+
+    static QVector<Eigen::VectorXd> psdFromTaperedSpectra(const QVector<Eigen::MatrixXcd> &matTapSpectrum,
+                                                          const Eigen::VectorXd &vecTapWeights,
+                                                          int iNfft,
+                                                          double dSampFreq=1.0,
+                                                          bool bUseMultithread = true);
+
+    //=========================================================================================================
+    /**
      * Calculates the cross-spectral density of the tapered spectra of seed and target
      *
      * @param[in] vecTapSpectrumSeed      tapered spectrum of the seed.
@@ -196,6 +220,93 @@ public:
      */
     static QPair<Eigen::MatrixXd, Eigen::VectorXd> generateTapers(int iSignalLength,
                                                                   const QString &sWindowType = "hanning");
+
+
+    //=========================================================================================================
+    /**
+     * Calculates weights of autoregressive model with maximum entropy method (Burg algorithm)
+     *
+     * @param[in] vecData         input row data (time domain), for which the spectrum is computed
+     * @param[in] iOrder          order of model
+     *
+     * @return Pair containing vector of AR weights and power
+     */
+    static QPair<Eigen::VectorXd, double> calculateARWeightsMEMRow(const Eigen::RowVectorXd &vecData, int iOrder);
+
+    //=========================================================================================================
+    /**
+     * Calculates weights of autoregressive model with maximum entropy method (Burg algorithm)
+     *
+     * @param[in] vecData         input data (time domain), for which the spectrum is computed
+     * @param[in] iOrder          order of model
+     *
+     * @return Pair containing vector of AR weights and power
+     */
+    static QVector<QPair<Eigen::VectorXd, double>> calculateARWeightsMEMMatrix(const Eigen::MatrixXd &matData, int iOrder,
+                                                                               bool bUseMultithread);
+    //=========================================================================================================
+    /**
+     * Computes the ARWeights for a row vector. This function gets called in parallel.
+     *
+     * @param[in] inputData    The input data.
+     *
+     * @return                 The tapered spectra for one data row.
+     */
+    static QPair<Eigen::VectorXd, double> computeAR(const ARWeightsMEMInputData& inputData);
+
+    //=========================================================================================================
+    /**
+     * Reduces the ARWEights results to a final result. This function gets called in parallel.
+     *
+     * @param[out] finalData    The final data data.
+     * @param[in]  resultData   The resulting data from the computation step.
+     */
+    static void reduceAR(QVector<QPair<Eigen::VectorXd, double>>& finalData,
+                       const QPair<Eigen::VectorXd, double>& resultData);
+
+
+    //=========================================================================================================
+    /**
+     * Calculates the evaluation points for spectrum computation
+     *
+     * @param[in] dBottomFreq    lower end of frequency spectrum
+     * @param[in] dTopFreq       upper end of frequency spectrum
+     * @param[in] iBins          number of bins/evaluation points
+     * @param[in] iEvalPerBin    evaluations per bin
+     * @param[in] bCentered      toggle whether spectrum is evaluated at bin edges (false) or bin centers (true)
+     *
+     * @return matrix of evaluation weights
+     */
+    static Eigen::MatrixXcd generateARSpectraWeights(double dBottomFreq, double dTopFreq, int iBins, int iEvalPerBin, bool bCentered = false);
+
+
+    //=========================================================================================================
+    /**
+     * Calculates the power spectral density of given tapered spectrum
+     *
+     * @param[in] ARweights             weights for AR model, output of calculateARweightsMEM
+     * @param[in] matSpectraweights     weights for frequency spectrum calculation
+     * @param[in] dSampFreq             sampling frequency of the input data
+     *
+     * @return power spectral density
+     */
+    static Eigen::VectorXd psdFromARSpectra(const QPair<Eigen::VectorXd, double> &ARWeights,
+                                               const Eigen::MatrixXcd &matSpectraWeights,  double dSampFreq);
+
+    //=========================================================================================================
+    /**
+     * Calculates the power spectral density of given tapered spectrum for multiple rows at once
+     *
+     * @param[in] ARweights             weights for AR model, output of calculateARweightsMEM
+     * @param[in] matSpectraweights     weights for frequency spectrum calculation
+     * @param[in] dSampFreq             sampling frequency of the input data
+     *
+     * @return power spectral density
+     */
+    static QVector<Eigen::VectorXd> psdFromARSpectra(const QVector<QPair<Eigen::VectorXd, double>> &ARWeights,
+                                               const Eigen::MatrixXcd &matSpectraWeights,  double dSampFreq,
+                                                     bool bUseMultithread);
+
 
 private:
     //=========================================================================================================

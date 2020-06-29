@@ -509,7 +509,20 @@ signals:
     void channelMarkingChanged();
 
     //=========================================================================================================
+
     void addSampleAsEvent(int iSample);
+
+    /**
+     * Emmited when selected channels changed detection was performed
+     */
+    void selectedChannelsChanged(QStringList);
+
+    //=========================================================================================================
+    /**
+     * Emmited when selected channels are resetted
+     */
+    void selectedChannelsResetted();
+
 };
 } // NAMESPACE
 

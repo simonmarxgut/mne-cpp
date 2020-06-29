@@ -143,6 +143,7 @@ void SpectrumView::init(FiffInfo::SPtr &info,
 
 void SpectrumView::addData(const MatrixXd &data)
 {
+    qDebug() << "SV::addData" << data.rows() << data.cols();
     m_pFSModel->addData(data);
 }
 

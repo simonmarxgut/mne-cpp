@@ -43,7 +43,7 @@
 #include <scDisp/realtime3dwidget.h>
 #include <scDisp/realtimeevokedsetwidget.h>
 #include <scDisp/realtimecovwidget.h>
-#include <scDisp/realtimespectrumwidget.h>
+#include <scDisp/realtimespectrumwidgetnew.h>
 
 #include <scMeas/realtimemultisamplearray.h>
 #include <scMeas/realtimesourceestimate.h>
@@ -173,12 +173,12 @@ QWidget* DisplayManager::show(AbstractPlugin::OutputConnectorList &outputConnect
         } else if (pPluginOutputConnector.dynamicCast< PluginOutputData<RealTimeSpectrum> >()) {
             QSharedPointer<RealTimeSpectrum> pRealTimeSpectrum = pPluginOutputConnector.dynamicCast< PluginOutputData<RealTimeSpectrum> >()->measurementData();
 
-            RealTimeSpectrumWidget* fsWidget = new RealTimeSpectrumWidget(pRealTimeSpectrum, pT, newDisp);
-
+            //RealTimeSpectrumWidget* fsWidget = new RealTimeSpectrumWidget(pRealTimeSpectrum, pT, newDisp);
+            RealTimeSpectrumWidgetNew* fsWidget = new RealTimeSpectrumWidgetNew(pRealTimeSpectrum, pT, newDisp);
             qListActions.append(fsWidget->getDisplayActions());
 
             connect(pPluginOutputConnector.data(), &PluginOutputConnector::notify,
-                    fsWidget, &RealTimeSpectrumWidget::update, Qt::BlockingQueuedConnection);
+                    fsWidget, &RealTimeSpectrumWidgetNew::update, Qt::BlockingQueuedConnection);
 
             vboxLayout->addWidget(fsWidget);
             fsWidget->init();

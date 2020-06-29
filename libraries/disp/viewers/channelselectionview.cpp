@@ -126,11 +126,58 @@ void ChannelSelectionView::initListWidgets()
     //Connect list widgets to update themselves and other list widgets when changed
     connect(m_pUi->m_listWidget_selectionGroups, &QListWidget::currentItemChanged,
                 this, &ChannelSelectionView::updateSelectionGroupsList);
+    //Make sure user selected channels are highlighted when changing selection groups
+    connect(ui->m_listWidget_selectionGroups, &QListWidget::currentItemChanged,
+                ui->m_listWidget_userDefined,
+            [this]() {
+        if(ui->m_listWidget_userDefined->count() > 0) {
+            QStringList userDefinedChannelList;
+            for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
+                QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+                userDefinedChannelList << item->text();
+            }
+            bool oldState = m_pSelectionScene->blockSignals(true);
+            selectChannels(userDefinedChannelList);
+            m_pSelectionScene->blockSignals(oldState);
+        }
+        });
+
+    //Highlight channel when selected in list
+    connect(ui->m_listWidget_visibleChannels, &QListWidget::itemClicked,ui->m_listWidget_userDefined,
+            [this](const QListWidgetItem* item) {
+        if(ui->m_listWidget_userDefined->count() == 0) {
+            selectChannelsMuted(item->text().split(';'));
+        }
+    });
 
     //Update data view whenever a drag and drop item movement is performed
     //TODO: This is inefficient because updateDataView is called everytime the list's viewport is entered
     connect(m_pUi->m_listWidget_userDefined->model(), &QAbstractTableModel::dataChanged,
                 this, &ChannelSelectionView::updateDataView);
+
+    //Remove items from list with double click
+    connect(ui->m_listWidget_userDefined, &QListWidget::itemDoubleClicked,ui->m_listWidget_userDefined,
+            [this](const QListWidgetItem* item) {
+        ui->m_listWidget_userDefined->takeItem(ui->m_listWidget_userDefined->row(item));
+        QStringList userDefinedChannelList;
+        for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
+            QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+            userDefinedChannelList << item->text();
+        }
+        selectChannelsMuted(userDefinedChannelList);
+        updateDataView();
+    });
+
+    //Highlight user selected channels
+    connect(ui->m_listWidget_userDefined, &QListWidget::itemChanged,
+            this, [this]() {
+        QStringList userDefinedChannelList;
+        for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
+            QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+            userDefinedChannelList << item->text();
+        }
+        selectChannelsMuted(userDefinedChannelList);
+    });
 }
 
 //=============================================================================================================
@@ -268,6 +315,16 @@ void ChannelSelectionView::selectChannels(QStringList channelList)
 
 //=============================================================================================================
 
+void ChannelSelectionView::selectChannelsMuted(QStringList channelList)
+{
+    bool oldState = m_pSelectionScene->blockSignals(true);
+    selectChannels(channelList);
+    m_pSelectionScene->blockSignals(oldState);
+}
+
+
+//=============================================================================================================
+
 QStringList ChannelSelectionView::getSelectedChannels()
 {
     //if no channels have been selected by the user -> show selected group channels
@@ -392,8 +449,9 @@ void ChannelSelectionView::updateDataView()
 
             selectedChannels << origChName;
         }
-        else
+        else {
             selectedChannels << item->text();
+        }
     }
 
     emit showSelectedChannelsOnly(selectedChannels);
@@ -412,6 +470,39 @@ void ChannelSelectionView::updateDataView()
         }
         emit selectionChanged(visibleItemList);
     }
+}
+
+//=============================================================================================================
+
+void ChannelSelectionView::setUserSelection(QStringList channelList)
+{
+    QStringList mappedChannelList;
+    for (int i=0; i < channelList.length(); i++)
+    {
+        int channelIndex = m_pChannelInfoModel->getIndexFromOrigChName(channelList.at(i));
+        QModelIndex digIndex = m_pChannelInfoModel->index(channelIndex,3);
+        mappedChannelList.append(m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetMappedLayoutChName).toString());
+    }
+    ui->m_listWidget_userDefined->addItems(mappedChannelList);
+
+    selectChannels(mappedChannelList);
+}
+
+//=============================================================================================================
+
+void ChannelSelectionView::resetUserSelection()
+{
+    if(ui->m_listWidget_userDefined->count()>0)
+        ui->m_listWidget_userDefined->clear();
+
+    QList<QGraphicsItem *> allSceneItems = m_pSelectionScene->items();
+
+    for(int i = 0; i < allSceneItems.size(); i++) {
+        SelectionSceneItem* item = static_cast<SelectionSceneItem*>(allSceneItems.at(i));
+        item->setSelected(false);
+    }
+
+    updateSceneItems();
 }
 
 //=============================================================================================================
@@ -495,8 +586,8 @@ bool ChannelSelectionView::loadLayout(QString path)
     QFile out("manualLayout.lout");
 
     for(int i = 0; i < m_pChannelInfoModel->rowCount(); i++) {
-        QModelIndex digIndex = m_pChannelInfoModel->index(i,1);
-        QString chName = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetOrigChName).toString();
+        QModelIndex digIndex = m_pChannelInfoModel->index(i,3);
+        QString chName = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetMappedLayoutChName).toString();
 
         digIndex = m_pChannelInfoModel->index(i,8);
         QVector3D channelDig = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetChDigitizer).value<QVector3D>();
@@ -594,8 +685,8 @@ bool ChannelSelectionView::loadSelectionGroups(QString path)
 
     QStringList names;
     for(int i = 0; i < m_pChannelInfoModel->rowCount(); i++) {
-        QModelIndex digIndex = m_pChannelInfoModel->index(i,1);
-        QString chName = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetOrigChName).toString();
+        QModelIndex digIndex = m_pChannelInfoModel->index(i,3);
+        QString chName = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetMappedLayoutChName).toString();
 
         digIndex = m_pChannelInfoModel->index(i,4);
         int kind = m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetChKind).toInt();
@@ -765,6 +856,8 @@ void ChannelSelectionView::onBtnAddToSelectionGroups()
 
     m_selectionGroupsMap.insertMulti(m_pUi->m_lineEdit_selectionGroupName->text(), temp);
     m_pUi->m_listWidget_selectionGroups->insertItem(m_pUi->m_listWidget_selectionGroups->count(), m_pUi->m_lineEdit_selectionGroupName->text());
+
+    m_pUi->m_listWidget_userDefined->clear();
 }
 
 //=============================================================================================================

@@ -66,6 +66,7 @@ SUBDIRS += \
         SUBDIRS += lsladapter \         # Build guide -> https://mne-cpp.github.io/pages/development/lsl.html
     }
 
+
 #Algorithms
 SUBDIRS += \
     #dummytoolbox \
@@ -77,3 +78,5 @@ SUBDIRS += \
     writetofile \
     hpi \
     rtfwd \
+    spectrum \
+    bandpower \

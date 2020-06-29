@@ -1,0 +1,12 @@
+#ifndef SPECTRUM_GLOBAL_H
+#define SPECTRUM_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(SPECTRUM_PLUGIN)
+#  define SPECTRUMSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define SPECTRUMSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // SPECTRUM_GLOBAL_H
