@@ -1,0 +1,12 @@
+#ifndef REREFERENCE_GLOBAL_H
+#define REREFERENCE_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(REREFERENCE_PLUGIN)
+#  define REREFERENCESHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define REREFERENCESHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // REREFERENCE_GLOBAL_H
