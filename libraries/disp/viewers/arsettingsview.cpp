@@ -67,7 +67,7 @@ using namespace DISPLIB;
 //=============================================================================================================
 
 ARSettingsView::ARSettingsView(const QString& sSettingsPath, bool bChangeSamplingPoints, QWidget *parent, Qt::WindowFlags f)
-    : QWidget(parent)
+    : QWidget(parent, f)
     , m_bChangeSamplingPoints(bChangeSamplingPoints)
     , ui(new Ui::ARSettingsViewWidget)
     , m_sSettingsPath(sSettingsPath)
@@ -127,8 +127,16 @@ ARSettingsView::~ARSettingsView()
 {
     saveSettings(m_sSettingsPath);
 
-    delete m_qSpinBoxSamplingPoints;
+    //delete m_qSpinBoxSamplingPoints;
     delete ui;
+}
+
+//=============================================================================================================
+
+void ARSettingsView::emitSignals()
+{
+    emit changeAROrder(m_iOrder);
+    emit changeARNumEvaluationPoints(m_iNumEvaluationPoints);
 }
 
 //=============================================================================================================

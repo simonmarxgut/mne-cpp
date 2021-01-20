@@ -1,15 +1,14 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     spectrumsetupwidget.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
+ *           Lorenz Esch <lesch@mgh.harvard.edu>
  * @since    0.1.0
  * @date     February, 2013
  *
  * @section  LICENSE
  *
- * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
+ * Copyright (C) 2013, Christoph Dinh, Lorenz Esch. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,58 +29,73 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Contains the declaration of the SpectrumSetupWidget class.
  *
  */
+
+#ifndef SPECTRUMSETUPWIDGET_H
+#define SPECTRUMSETUPWIDGET_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
-
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../ui_spectrumsetup.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
-#include <QDebug>
+#include <QWidget>
 
 //=============================================================================================================
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
-using namespace Ui;
-
 //=============================================================================================================
-// DEFINE MEMBER METHODS
+// DEFINE NAMESPACE BANDPOWERPLUGIN
 //=============================================================================================================
 
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
-: QWidget(parent)
-, m_pRereference(pRereference)
+namespace SPECTRUMPLUGIN
 {
-    ui = new RereferenceSetupWidgetClass();
-    ui->setupUi(this);
-
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
-
-    QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
-
-    ui->m_qGroupBox_Options->setLayout(settingsLayout);
-
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
-}
 
 //=============================================================================================================
+// FORWARD DECLARATIONS
+//=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+class Spectrum;
+
+/*namespace Ui {
+class BandPowerSetupWidget;
+}*/
+
+class SpectrumSetupWidget : public QWidget
 {
-}
+    Q_OBJECT
+
+public:
+
+    //=========================================================================================================
+    /**
+     * Constructs a BandPowerSetupWidget which is a child of parent.
+     *
+     * @param [in] parent pointer to parent widget; If parent is 0, the new BandPowerSetupWidget becomes a window. If parent is another widget, EEGoSportsSetupWidget becomes a child window inside parent. EEGoSportsSetupWidget is deleted when its parent is deleted.
+     * @param [in] pBandPower a pointer to the corresponding BandPower-Plugin.
+     */
+    explicit SpectrumSetupWidget(Spectrum* pSpectrum, QWidget *parent = nullptr);
+
+    //=========================================================================================================
+    /**
+     * Destroys the BandPowerSetupWidget.
+     * All BandPowerSetupWidget's children are deleted first. The application exits if EEGoSportsSetupWidget is the main widget.
+     */
+    ~SpectrumSetupWidget();
+
+private:
+    Spectrum* m_pSpectrum;
+
+    Ui::SpectrumSetupClass ui;
+};
+} // NAMESPACE
+
+#endif // BANDPOWERSETUPWIDGET_H

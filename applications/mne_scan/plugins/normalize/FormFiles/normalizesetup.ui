@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>RereferenceSetupWidgetClass</class>
- <widget class="QWidget" name="RereferenceSetupWidgetClass">
+ <class>NormalizeSetupWidgetClass</class>
+ <widget class="QWidget" name="NormalizeSetupWidgetClass">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -23,7 +23,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Rereference Plugin</string>
+      <string>Bandpower Plugin</string>
      </property>
     </widget>
    </item>

@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     normalizesetupwidget.cpp
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
  *           Lorenz Esch <lesch@mgh.harvard.edu>;
  *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Definition of the NormalizeSetupWidget class.
  *
  */
 
@@ -38,11 +38,11 @@
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
+#include "normalizesetupwidget.h"
+#include "../ui_normalizesetup.h"
 
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../normalize.h"
+#include "normalizewidget.h"
 
 //=============================================================================================================
 // QT INCLUDES
@@ -54,34 +54,35 @@
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
+using namespace NORMALIZEPLUGIN;
 using namespace Ui;
 
 //=============================================================================================================
 // DEFINE MEMBER METHODS
 //=============================================================================================================
 
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
+NormalizeSetupWidget::NormalizeSetupWidget(Normalize* pNormalize, const QString& sSettingsPath, QWidget *parent)
 : QWidget(parent)
-, m_pRereference(pRereference)
+, m_pNormalize(pNormalize)
 {
-    ui = new RereferenceSetupWidgetClass();
+    ui = new NormalizeSetupWidgetClass();
     ui->setupUi(this);
 
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
+    NormalizeWidget* pNormalizeWidget = new NormalizeWidget(sSettingsPath,-1,-1,true);
 
     QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
+    settingsLayout->addWidget(pNormalizeWidget);
 
     ui->m_qGroupBox_Options->setLayout(settingsLayout);
 
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
+    connect(pNormalizeWidget,&NormalizeWidget::changeEnabled,m_pNormalize,&Normalize::changeEnabled);
+    connect(pNormalizeWidget,&NormalizeWidget::changeModality,m_pNormalize,&Normalize::changeModality);
+    connect(pNormalizeWidget,&NormalizeWidget::changeMethod,m_pNormalize,&Normalize::changeMethod);
+    connect(pNormalizeWidget,&NormalizeWidget::changeIntervallLength,m_pNormalize,&Normalize::changeIntervallLength);
 }
 
 //=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+NormalizeSetupWidget::~NormalizeSetupWidget()
 {
 }

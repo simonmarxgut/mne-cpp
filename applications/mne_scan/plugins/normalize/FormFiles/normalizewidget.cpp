@@ -38,9 +38,9 @@
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencewidget.h"
-#include "../ui_rereferencewidget.h"
-#include "../rereference.h"
+#include "normalizewidget.h"
+#include "../ui_normalizewidget.h"
+#include "../normalize.h"
 
 //=============================================================================================================
 // QT INCLUDES
@@ -56,49 +56,92 @@
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
+using namespace NORMALIZEPLUGIN;
 
 //=============================================================================================================
 // DEFINE MEMBER METHODS
 //=============================================================================================================
 
-RereferenceWidget::RereferenceWidget(const QString& sSettingsPath, QWidget *parent)
+NormalizeWidget::NormalizeWidget(const QString& sSettingsPath, double dDataSampFreq,
+                                 int iDataBlockLength, bool bEnabled, int iMethod,
+                                 int iModality, double dIntervallLength, QWidget *parent)
 : QWidget(parent)
-, ui(new Ui::RereferenceWidget)
+, ui(new Ui::NormalizeWidget)
 , m_sSettingsPath(sSettingsPath)
-, m_bEnabled(true)
-, m_iModality(0)
-, m_iMethod(0)
+, m_iDataBlockLength(iDataBlockLength)
+, m_bEnabled(bEnabled)
+, m_iModality(iModality)
+, m_iMethod(iMethod)
+, m_dIntervallLength(dIntervallLength)
 {
     ui->setupUi(this);
 
-    ui->radioButton_EEG->setChecked(true);
-    ui->radioButton_MEG->setChecked(false);
-    ui->radioButton_EMEG->setChecked(false);
-    ui->buttonGroupModality->setId(ui->radioButton_EEG,0);
-    ui->buttonGroupModality->setId(ui->radioButton_MEG,1);
-    ui->buttonGroupModality->setId(ui->radioButton_EMEG,2);
-    connect(ui->buttonGroupModality,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&RereferenceWidget::onClickedButtonModality);
+    if(!(m_dIntervallLength > 0)) {
+        m_dIntervallLength = 1.0;
+        qWarning() << "Intervall length has to be larger than zero. Corrected to " << m_dIntervallLength;
+    }
 
-    ui->radioButton_CAR->setChecked(true);
-    ui->radioButton_Selection->setChecked(false);
-    ui->radioButton_File->setChecked(false);
-    ui->buttonGroupMethod->setId(ui->radioButton_CAR,0);
-    ui->buttonGroupMethod->setId(ui->radioButton_Selection,1);
-    ui->buttonGroupMethod->setId(ui->radioButton_File,2);
-    connect(ui->buttonGroupMethod,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&RereferenceWidget::onClickedButtonMethod);
+    if(m_iMethod == 0) {
+        ui->radioButton_None->setChecked(true);
+        ui->radioButton_Demean->setChecked(false);
+        ui->radioButton_DemeanVar->setChecked(false);
+    } else if(m_iMethod == 1) {
+        ui->radioButton_None->setChecked(false);
+        ui->radioButton_Demean->setChecked(true);
+        ui->radioButton_DemeanVar->setChecked(false);
+    } else {
+        ui->radioButton_None->setChecked(false);
+        ui->radioButton_Demean->setChecked(false);
+        ui->radioButton_DemeanVar->setChecked(true);
+    }
+    ui->buttonGroupModality->setId(ui->radioButton_None,0);
+    ui->buttonGroupModality->setId(ui->radioButton_Demean,1);
+    ui->buttonGroupModality->setId(ui->radioButton_DemeanVar,2);
+    connect(ui->buttonGroupModality,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&NormalizeWidget::onClickedButtonModality);
+
+    if((m_iModality > 0) || !(m_iDataBlockLength > 0)) {
+        ui->radioButton_DataBlocks->setChecked(false);
+        ui->radioButton_Seconds->setChecked(true);
+    } else {
+        ui->radioButton_DataBlocks->setChecked(true);
+        ui->radioButton_Seconds->setChecked(false);
+    }
+    ui->buttonGroupMethod->setId(ui->radioButton_DataBlocks,0);
+    ui->buttonGroupMethod->setId(ui->radioButton_Seconds,1);
+    connect(ui->buttonGroupMethod,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&NormalizeWidget::onClickedButtonMethod);
+
+    if(m_iDataBlockLength > 0) {
+        ui->doubleSpinBox_Seconds->setSingleStep(double(iDataBlockLength)/dDataSampFreq);
+        if(m_iModality == 0) {
+            m_dIntervallLength = std::round(m_dIntervallLength * dDataSampFreq / double(iDataBlockLength));
+            ui->spinBox_DataBlocks->setValue(m_dIntervallLength);
+            ui->doubleSpinBox_Seconds->setValue(ui->spinBox_DataBlocks->value()*iDataBlockLength/dDataSampFreq);
+        } else {
+            ui->spinBox_DataBlocks->setValue(std::round(m_dIntervallLength * dDataSampFreq / double(iDataBlockLength)));
+            ui->doubleSpinBox_Seconds->setValue(m_dIntervallLength);
+        }
+        connect(ui->spinBox_DataBlocks,QOverload<int>::of(&QSpinBox::valueChanged),this,&NormalizeWidget::onChangeIntervallLengthDataBlocks);
+
+    } else {
+        ui->doubleSpinBox_Seconds->setSingleStep(0.1);
+        ui->spinBox_DataBlocks->setEnabled(false);
+        ui->doubleSpinBox_Seconds->setValue(1.0);
+        ui->spinBox_DataBlocks->setValue(0);
+        ui->radioButton_DataBlocks->setEnabled(false);
+        ui->radioButton_Seconds->setEnabled(false);
+    }
+
+    connect(ui->doubleSpinBox_Seconds,QOverload<double>::of(&QDoubleSpinBox::valueChanged),this,&NormalizeWidget::onChangeIntervallLengthSeconds);
 
     ui->checkBox_Enabled->setChecked(m_bEnabled);
-    connect(ui->checkBox_Enabled,&QCheckBox::stateChanged,this,&RereferenceWidget::onClickedCheckboxEnabled);
-
-    connect(ui->pushButton_File,&QPushButton::released,this,&RereferenceWidget::onChangeFile);
+    connect(ui->checkBox_Enabled,&QCheckBox::stateChanged,this,&NormalizeWidget::onClickedCheckboxEnabled);
 
     loadSettings(m_sSettingsPath);
 }
 
 //=============================================================================================================
 
-RereferenceWidget::~RereferenceWidget()
+NormalizeWidget::~NormalizeWidget()
 {
     saveSettings(m_sSettingsPath);
 
@@ -107,7 +150,7 @@ RereferenceWidget::~RereferenceWidget()
 
 //=============================================================================================================
 
-void RereferenceWidget::saveSettings(const QString& settingsPath)
+void NormalizeWidget::saveSettings(const QString& settingsPath)
 {
     if(settingsPath.isEmpty()) {
         return;
@@ -121,7 +164,7 @@ void RereferenceWidget::saveSettings(const QString& settingsPath)
 
 //=============================================================================================================
 
-void RereferenceWidget::loadSettings(const QString& settingsPath)
+void NormalizeWidget::loadSettings(const QString& settingsPath)
 {
     if(settingsPath.isEmpty()) {
         return;
@@ -135,7 +178,7 @@ void RereferenceWidget::loadSettings(const QString& settingsPath)
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedButtonModality(int value)
+void NormalizeWidget::onClickedButtonModality(int value)
 {
     m_iModality = value;
 
@@ -146,7 +189,7 @@ void RereferenceWidget::onClickedButtonModality(int value)
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedButtonMethod(int value)
+void NormalizeWidget::onClickedButtonMethod(int value)
 {
     m_iMethod = value;
 
@@ -157,7 +200,7 @@ void RereferenceWidget::onClickedButtonMethod(int value)
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedCheckboxEnabled(bool value)
+void NormalizeWidget::onClickedCheckboxEnabled(bool value)
 {
     m_bEnabled = value;
 
@@ -166,18 +209,23 @@ void RereferenceWidget::onClickedCheckboxEnabled(bool value)
 
 //=============================================================================================================
 
-void RereferenceWidget::onChangeFile()
+void NormalizeWidget::onChangeIntervallLengthDataBlocks(int value)
 {
-    QString path = QFileDialog::getOpenFileName(this,
-                                                "Select EEG rereferencing file",
-                                                "resources/mne_scan/plugins/rereferencing/loc_files",
-                                                 tr("Simple text files (*.*)"));
+    m_dIntervallLength = value * m_iDataBlockLength / m_dDataSampFreq;
 
-    if(path==NULL){
-        path = ui->lineEdit_File->text();
-    }
+    ui->doubleSpinBox_Seconds->setValue(m_dIntervallLength);
 
-    ui->lineEdit_File->setText(path);
-    //m_pEEGoSports->m_sElcFilePath = m_pUi->m_qLineEdit_EEGCap->text();
+    emit changeIntervallLength(m_dIntervallLength);
 }
 
+//=============================================================================================================
+
+void NormalizeWidget::onChangeIntervallLengthSeconds(double value)
+{
+    m_dIntervallLength = value;
+
+    if(m_iDataBlockLength > 0)
+        ui->spinBox_DataBlocks->setValue(std::round(m_dIntervallLength * m_dDataSampFreq / m_iDataBlockLength));
+
+    emit changeIntervallLength(m_dIntervallLength);
+}

@@ -45,7 +45,7 @@ SUBDIRS += \
     fiffsimulator \
     ftbuffer \
     babymeg \
-    natus \
+    natus
 
     contains(MNECPP_CONFIG, withBrainAmp) {
         SUBDIRS += brainamp \           # Build guide -> https://mne-cpp.github.io/pages/development/brainamp.html
@@ -80,3 +80,8 @@ SUBDIRS += \
     rtfwd \
     spectrum \
     bandpower \
+    rereference \
+    linearclassifier \
+    normalize \
+
+

@@ -1,14 +1,14 @@
 #==============================================================================================================
 #
-# @file     spectrum.pro
+# @file     normalize.pro
 # @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
 #           Lorenz Esch <lesch@mgh.harvard.edu>
-# @version  dev
-# @date     April, 2020
+# @since    0.1.0
+# @date     July, 2012
 #
 # @section  LICENSE
 #
-# Copyright (C) 2020, Christoph Dinh, Lorenz Esch. All rights reserved.
+# Copyright (C) 2012, Christoph Dinh, Lorenz Esch. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without modification, are permitted provided that
 # the following conditions are met:
@@ -29,7 +29,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 #
 #
-# @brief    This project file generates the makefile for the spectrum plug-in.
+# @brief    This project file generates the makefile for the normalize plug-in.
 #
 #==============================================================================================================
 
@@ -39,39 +39,13 @@ TEMPLATE = lib
 
 CONFIG += plugin
 
-DEFINES += SPECTRUM_PLUGIN
+DEFINES += NORMALIZE_PLUGIN
 
 QT += core widgets
 
-TARGET = spectrum
+TARGET = normalize
 CONFIG(debug, debug|release) {
     TARGET = $$join(TARGET,,,d)
-}
-
-# The following define makes your compiler emit warnings if you use
-# any feature of Qt which has been marked as deprecated (the exact warnings
-# depend on your compiler). Please consult the documentation of the
-# deprecated API in order to know how to port your code away from it.
-DEFINES += QT_DEPRECATED_WARNINGS
-
-# You can also make your code fail to compile if you use deprecated APIs.
-# In order to do so, uncomment the following line.
-# You can also select to disable deprecated APIs only up to a certain version of Qt.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-
-SOURCES += \
-        FormFiles/spectrumsetupwidget.cpp \
-        spectrum.cpp
-HEADERS += \
-        FormFiles/spectrumsetupwidget.h \
-        spectrum.h \
-        spectrum_global.h
-FORMS += \
-    FormFiles/spectrumsetup.ui
-
-unix {
-    target.path = /usr/lib
-    INSTALLS += target
 }
 
 DESTDIR = $${MNE_BINARY_DIR}/mne_scan_plugins
@@ -93,11 +67,26 @@ CONFIG(debug, debug|release) {
             -lscShared
 }
 
+SOURCES += \
+        FormFiles/normalizesetupwidget.cpp \
+        FormFiles/normalizewidget.cpp \
+        normalize.cpp
+
+HEADERS += \
+        FormFiles/normalizesetupwidget.h \
+        FormFiles/normalizewidget.h \
+        normalize.h\
+        normalize_global.h
+
+FORMS += \
+    FormFiles/normalizesetup.ui \
+    FormFiles/normalizewidget.ui
+
 INCLUDEPATH += $${EIGEN_INCLUDE_DIR}
 INCLUDEPATH += $${MNE_INCLUDE_DIR}
 INCLUDEPATH += $${MNE_SCAN_INCLUDE_DIR}
 
-#OTHER_FILES += dummytoolbox.json
+OTHER_FILES += normalize.json
 
 # Put generated form headers into the origin --> cause other src is pointing at them
 UI_DIR = $$PWD
@@ -133,4 +122,5 @@ contains(MNECPP_CONFIG, useFFTW):!contains(MNECPP_CONFIG, static) {
 }
 
 DISTFILES += \
-    spectrum.json
+    normalize.json
+

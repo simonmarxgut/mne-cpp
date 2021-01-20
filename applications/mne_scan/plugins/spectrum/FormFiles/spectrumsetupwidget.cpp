@@ -1,15 +1,14 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     spectrumsetupwidget.cpp
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
+ *           Lorenz Esch <lesch@mgh.harvard.edu>
  * @since    0.1.0
  * @date     February, 2013
  *
  * @section  LICENSE
  *
- * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
+ * Copyright (C) 2013, Christoph Dinh, Lorenz Esch. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Definition of the SpectrumSetupWidget class.
  *
  */
 
@@ -38,50 +37,68 @@
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
+#include "spectrumsetupwidget.h"
 
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../spectrum.h"
+
+#include "disp/viewers/bandpowersettingsview.h"
+#include "disp/viewers/arsettingsview.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
 #include <QDebug>
+#include <QTabWidget>
 
 //=============================================================================================================
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
-using namespace Ui;
+using namespace SPECTRUMPLUGIN;
+using namespace DISPLIB;
 
 //=============================================================================================================
 // DEFINE MEMBER METHODS
 //=============================================================================================================
 
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
-: QWidget(parent)
-, m_pRereference(pRereference)
+SpectrumSetupWidget::SpectrumSetupWidget(Spectrum* pSpectrum, QWidget *parent)
+    : QWidget(parent)
+    , m_pSpectrum(pSpectrum)
 {
-    ui = new RereferenceSetupWidgetClass();
-    ui->setupUi(this);
+    ui.setupUi(this);
 
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
+    BandPowerSettingsView* pBandPowerSettingsView = new BandPowerSettingsView(QString("MNESCAN/%1/").arg(m_pSpectrum->getName()),
+                                                                              512, 10, 20, QString::fromStdString("AR"), 1, -1);
+    ARSettingsView* pARSettingsView = new ARSettingsView(QString("MNESCAN/%1/").arg(m_pSpectrum->getName()));
 
     QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
 
-    ui->m_qGroupBox_Options->setLayout(settingsLayout);
+    QTabWidget* settingsTab = new QTabWidget;
 
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
+    settingsTab->addTab(pBandPowerSettingsView, "Spectrum Settings");
+    settingsTab->addTab(pARSettingsView, "AR Settings");
+
+    settingsLayout->addWidget(settingsTab);
+
+    ui.m_qGroupBox_BandPowerOptions->setLayout(settingsLayout);
+
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMinMax,m_pSpectrum,&Spectrum::changeMinMaxFrequency);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMethod,m_pSpectrum,&Spectrum::changeSpectrumMethod);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeIntervallLength,m_pSpectrum,&Spectrum::changeIntervallLengthFactor);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeDetrend,m_pSpectrum,&Spectrum::changeDetrendMethod);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeBins,m_pSpectrum,&Spectrum::changeSpectrumBins);
+
+    pBandPowerSettingsView->emitSignals();
+
+    connect(pARSettingsView, &ARSettingsView::changeAROrder,m_pSpectrum,&Spectrum::changeAROrder);
+    connect(pARSettingsView, &ARSettingsView::changeARNumEvaluationPoints,m_pSpectrum,&Spectrum::changeARNumEvaluationPoints);
+
+    pARSettingsView->emitSignals();
 }
 
 //=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+SpectrumSetupWidget::~SpectrumSetupWidget()
 {
 }

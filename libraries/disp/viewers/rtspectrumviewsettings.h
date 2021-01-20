@@ -1,15 +1,13 @@
 //=============================================================================================================
 /**
- * @file     rereferencewidget.h
- * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>
+ * @file     rtspectrumviewsettings.h
+ * @author   Lorenz Esch <lesch@mgh.harvard.edu>
  * @since    0.1.0
- * @date     January, 2016
+ * @date     July, 2018
  *
  * @section  LICENSE
  *
- * Copyright (C) 2016, Christoph Dinh, Viktor Klueber, Lorenz Esch. All rights reserved.
+ * Copyright (C) 2018, Lorenz Esch. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,22 +28,25 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Contains the declaration of the RereferenceWidget class.
+ * @brief    Declaration of the RtSpectrumViewSettings Class.
  *
  */
 
-#ifndef REREFERENCEWIDGET_H
-#define REREFERENCEWIDGET_H
+#ifndef RTSPECTRUMVIEWSETTINGS_H
+#define RTSPECTRUMVIEWSETTINGS_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
+
+#include "../disp_global.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
 #include <QWidget>
+#include <QStringList>
 
 //=============================================================================================================
 // EIGEN INCLUDES
@@ -55,47 +56,82 @@
 // FORWARD DECLARATIONS
 //=============================================================================================================
 
-namespace Ui{
-    class RereferenceWidget;
+namespace Ui {
+    class RtSpectrumViewSettingsWidget;
 }
 
 //=============================================================================================================
-// DEFINE NAMESPACE REREFERENCEPLUGIN
+// DEFINE NAMESPACE DISPLIB
 //=============================================================================================================
 
-namespace REREFERENCEPLUGIN
+namespace DISPLIB
 {
 
 //=============================================================================================================
-// FORWARD DECLARATIONS
+// DISPLIB FORWARD DECLARATIONS
 //=============================================================================================================
 
 //=============================================================================================================
 /**
- * DECLARE CLASS RereferenceYourWidget
+ * DECLARE CLASS RtSpectrumViewSettings
  *
- * @brief The Rereference class provides a rereference widget.
+ * @brief The RtSpectrumViewSettings class provides a view to select different channel data view dependent settings
  */
-class RereferenceWidget : public QWidget
+class DISPSHARED_EXPORT RtSpectrumViewSettings : public QWidget
 {
     Q_OBJECT
 
-public:
-    typedef QSharedPointer<RereferenceWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
-    typedef QSharedPointer<RereferenceWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
+public:    
+    typedef QSharedPointer<RtSpectrumViewSettings> SPtr;              /**< Shared pointer type for FiffRawViewSettings. */
+    typedef QSharedPointer<const RtSpectrumViewSettings> ConstSPtr;   /**< Const shared pointer type for FiffRawViewSettings. */
 
     //=========================================================================================================
     /**
-     * Constructs a DummyToolbox.
+     * Constructs a FiffRawViewSettings which is a child of parent.
+     *
+     * @param [in] parent        parent of widget
      */
-    explicit RereferenceWidget(const QString& sSettingsPath = "",
-                             QWidget *parent = 0);
+    RtSpectrumViewSettings(const QString& sSettingsPath = "", double dWindowLength = 10.0, double dWindowStepsize = 1.0,
+                            QWidget *parent = 0,
+                            Qt::WindowFlags f = Qt::Widget);
 
     //=========================================================================================================
     /**
-     * Destroys the DummyToolbox.
+     * Destroys the FiffRawViewSettings.
      */
-    ~RereferenceWidget();
+    ~RtSpectrumViewSettings();
+
+    //=========================================================================================================
+    /**
+     * Sets the values of the windowSize spin box
+     *
+     * @param [in] windowSize    new window size value
+     */
+    void setWindowSize(int windowSize);
+
+    //=========================================================================================================
+    /**
+     * Set current distance time spacer combo box.
+     *
+     * @param [in] value     the new value of the combo box
+     */
+    void setColormapMax(double value);
+
+    //=========================================================================================================
+    /**
+     * Set current distance time spacer combo box.
+     *
+     * @param [in] value     the new value of the combo box
+     */
+    void setColormapMin(double value);
+
+    //=========================================================================================================
+    /**
+     * Returns the current window size.
+     *
+     * @return The current window size.
+     */
+    int getWindowSize();
 
 protected:
     //=========================================================================================================
@@ -116,44 +152,77 @@ protected:
 
     //=========================================================================================================
     /**
-     * Slot called when radio button modality change
+     * Slot called when time window size changes
      */
-    void onClickedButtonModality(int value);
+    void onTimeWindowChanged(double value);
 
     //=========================================================================================================
     /**
-     * Slot called when radio button method change
+     * Slot called when zoome changes
      */
-    void onClickedButtonMethod(int value);
+    void onZoomChanged(double value);
 
     //=========================================================================================================
     /**
-     * Slot called when checkbox enabled change
+     * Call this slot whenever you want to make a screenshot of the butterfly or layout view.
      */
-    void onClickedCheckboxEnabled(bool value);
+    void onMakeScreenshot();
+
+    Ui::RtSpectrumViewSettingsWidget* ui;
+
+    QString     m_sSettingsPath;                /**< The settings path to store the GUI settings to. */
 
     //=========================================================================================================
     /**
-     * Slot called when input reference matrix file change
+     * Slot called when zoome changes
      */
-    void onChangeFile();
+    void onFixColormapChanged(bool value);
 
-    QString                     m_sSettingsPath;    /**< The settings path to store the GUI settings to. */
-    bool m_bEnabled;
-    int m_iModality;
-    int m_iMethod;
+    //=========================================================================================================
+    /**
+     * Slot called when zoome changes
+     */
+    void onColormapMaxChanged(double value);
 
-    Ui::RereferenceWidget*     ui;              /**< The UI class specified in the designer. */
+    //=========================================================================================================
+    /**
+     * Slot called when zoome changes
+     */
+    void onColormapMinChanged(double value);
 
 signals:
     //=========================================================================================================
     /**
-     * Emitted whenever the settings changed and are ready to be retreived.
+     * Emit this signal whenever the user changes the window size.
      */
-    void changeEnabled(bool value);
-    void changeModality(int value);
-    void changeMethod(int value);
-};
-}   //namespace
+    void timeWindowChanged(double value);
 
-#endif // REREFERENCEWIDGET_H
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user wants to make a screenshot.
+     *
+     * @param[out] imageType     The current image type: png, svg.
+     */
+    void makeScreenshot(const QString& imageType);
+
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user changes the row height (zoom) of the channels.
+     */
+    void fixColormapChanged(bool value);
+
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user changes the row height (zoom) of the channels.
+     */
+    void colormapMaxChanged(double value);
+
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user changes the row height (zoom) of the channels.
+     */
+    void colormapMinChanged(double value);
+};
+} // NAMESPACE
+
+#endif // RTSPECTRUMVIEWSETTINGS_H

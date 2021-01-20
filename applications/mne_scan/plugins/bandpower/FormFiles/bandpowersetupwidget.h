@@ -1,15 +1,14 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     covariancesetupwidget.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
+ *           Lorenz Esch <lesch@mgh.harvard.edu>
  * @since    0.1.0
  * @date     February, 2013
  *
  * @section  LICENSE
  *
- * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
+ * Copyright (C) 2013, Christoph Dinh, Lorenz Esch. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,58 +29,73 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Contains the declaration of the CovarianceSetupWidget class.
  *
  */
+
+#ifndef BANDPOWERSETUPWIDGET_H
+#define BANDPOWERSETUPWIDGET_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
-
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../ui_bandpowersetup.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
-#include <QDebug>
+#include <QWidget>
 
 //=============================================================================================================
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
-using namespace Ui;
-
 //=============================================================================================================
-// DEFINE MEMBER METHODS
+// DEFINE NAMESPACE BANDPOWERPLUGIN
 //=============================================================================================================
 
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
-: QWidget(parent)
-, m_pRereference(pRereference)
+namespace BANDPOWERPLUGIN
 {
-    ui = new RereferenceSetupWidgetClass();
-    ui->setupUi(this);
-
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
-
-    QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
-
-    ui->m_qGroupBox_Options->setLayout(settingsLayout);
-
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
-}
 
 //=============================================================================================================
+// FORWARD DECLARATIONS
+//=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+class BandPower;
+
+/*namespace Ui {
+class BandPowerSetupWidget;
+}*/
+
+class BandPowerSetupWidget : public QWidget
 {
-}
+    Q_OBJECT
+
+public:
+
+    //=========================================================================================================
+    /**
+     * Constructs a BandPowerSetupWidget which is a child of parent.
+     *
+     * @param [in] parent pointer to parent widget; If parent is 0, the new BandPowerSetupWidget becomes a window. If parent is another widget, EEGoSportsSetupWidget becomes a child window inside parent. EEGoSportsSetupWidget is deleted when its parent is deleted.
+     * @param [in] pBandPower a pointer to the corresponding BandPower-Plugin.
+     */
+    explicit BandPowerSetupWidget(BandPower* pBandPower, QWidget *parent = nullptr);
+
+    //=========================================================================================================
+    /**
+     * Destroys the BandPowerSetupWidget.
+     * All BandPowerSetupWidget's children are deleted first. The application exits if EEGoSportsSetupWidget is the main widget.
+     */
+    ~BandPowerSetupWidget();
+
+private:
+    BandPower* m_pBandPower;
+
+    Ui::BandPowerSetupClass ui;
+};
+} // NAMESPACE
+
+#endif // BANDPOWERSETUPWIDGET_H

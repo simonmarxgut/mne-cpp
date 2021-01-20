@@ -307,6 +307,41 @@ public:
                                                const Eigen::MatrixXcd &matSpectraWeights,  double dSampFreq,
                                                      bool bUseMultithread);
 
+    //=========================================================================================================
+    /**
+             * Calculate the bandpower from the (equally spaced) spectrum entries using Simpson's rule.
+             *
+             * @param[in] spectrumentries  Entries of the power spectrum.
+             */
+    static double bandpowerFromSpectrumEntries(const Eigen::VectorXd &spectrumentries, double stepsize);
+
+    //=========================================================================================================
+    /**
+             * Calculate the bandpower from the (equally spaced) spectrum entries using Simpson's rule.
+             * for intervalls that do not match the evaluation frequencies
+             *
+             * @param[in] spectrumentries  Entries of the power spectrum.
+             */
+    static double bandpowerFromSpectrumEntriesOffset(const Eigen::VectorXd &spectrumbins, const Eigen::VectorXd &spectrumentries,
+                                                     double minFreq, double maxFreq,
+                                                     double eps = std::numeric_limits<double>::epsilon());
+
+    //=========================================================================================================
+    /**
+             * Detrend equally spaced data.
+             *
+             * @param[in] data      Data matrix.
+             * @param[in] method    Detrending method (0 = none, 1 = remove mean, 2 = remove linear trend).
+             */
+    static Eigen::MatrixXd detrendData(const Eigen::MatrixXd &data, int method);
+
+    //=========================================================================================================
+    /**
+             * Linear detrend equally spaced data.
+             *
+             * @param[in] data      Data matrix.
+             */
+    static Eigen::MatrixXd linearDetrend(const Eigen::MatrixXd &data);
 
 private:
     //=========================================================================================================

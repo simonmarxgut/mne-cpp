@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     noisereduction.h
+ * @file     spectrum.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
  *           Lorenz Esch <lesch@mgh.harvard.edu>
  * @version  dev
@@ -54,6 +54,8 @@
 // QT INCLUDES
 //=============================================================================================================
 
+#include <QPointer>
+
 //=============================================================================================================
 // EIGEN INCLUDES
 //=============================================================================================================
@@ -66,6 +68,12 @@
 
 namespace SCMEASLIB {
     class RealTimeMultiSampleArray;
+}
+
+
+namespace DISPLIB {
+    class ChannelSelectionView;
+    class ChannelInfoModel;
 }
 
 //=============================================================================================================
@@ -128,6 +136,28 @@ public:
 
     //=========================================================================================================
     /**
+     * Inits widgets which are used to control this plugin, then emits them in form of a QList.
+     */
+    virtual void initPluginControlWidgets();
+
+    //=========================================================================================================
+    /**
+             * Changes the bottom and top frequency of the power spectrum.
+             *
+             * @param[in] frequency  Desired bottom frequency.
+             */
+    void changeMinMaxFrequency(double minFrequency, double maxFrequency);
+
+    //=========================================================================================================
+    /**
+             * Changes the method to calculate the power spectrum.
+             *
+             * @param[in] method  Method to calculate the power spectrum.
+             */
+    void changeSpectrumMethod(QString method);
+
+    //=========================================================================================================
+    /**
      * Changes the length of the evaluated intervall (in multiples of block length).
      *
      * @param[in] lengthfactor  Factor for intervall length.
@@ -142,6 +172,61 @@ public:
      */
     void changeResolutionFactor(quint32 resolutionfactor);
 
+    //=========================================================================================================
+    /**
+             * Changes the detrend method for the data.
+             *
+             * @param[in] method  Detrend method (0: none, 1: remove mean, 2: remove linear trend).
+             */
+    void changeDetrendMethod(quint32 method);
+
+    //=========================================================================================================
+    /**
+             * Changes the number of channels for which bandpower is analyzed.
+             *
+             * @param[in] channels  Number of channels.
+             */
+    void changeBandPowerChannels(quint32 channels);
+
+    //=========================================================================================================
+    /**
+             * Changes the number of bins in which bandpower is calculated for each channel.
+             *
+             * @param[in] bins  Number of bins.
+             */
+    void changeSpectrumBins(quint32 bins);
+
+    //=========================================================================================================
+    /**
+             * Changes the order of the AR for spectrum estimation.
+             *
+             * @param[in] order  Order of the AR method.
+             */
+    void changeAROrder(quint32 order);
+
+    //=========================================================================================================
+    /**
+             * Changes the number of evaluatin points for the AR for spectrum estimation.
+             *
+             * @param[in] evaluationpoints  Number of evaluation points.
+             */
+    void changeARNumEvaluationPoints(quint32 evaluationpoints);
+
+    //=========================================================================================================
+    /**
+     * Only evaluates the channels defined in the QStringList selectedChannels
+     *
+     * @param [in] selectedChannels list of all channel names which are currently selected in the selection manager.
+     */
+    void evaluateSelectedChannelsOnly(const QStringList& selectedChannels);
+
+    //=========================================================================================================
+    /**
+     * Calculate Frequency bins of Spectrum
+     *
+     */
+    void calcFrequencies();
+
 protected:
     //=========================================================================================================
     /**
@@ -152,20 +237,42 @@ protected:
     //void showYourWidget();
 
 private:
+
+    //=========================================================================================================
+    /**
+     * Shows sensor selection widget
+     */
+    void showSensorSelectionWidget();
+
+    QMutex                          m_qMutex;                                    /**< The threads mutex.*/
+
     bool        m_bProcessData;                     /**< If data should be received for processing */
 
     quint32 m_iIntervallLengthFactor;
     quint32 m_iResolutionFactorFFT;
     quint32 m_iOrderAR;
-    quint32 m_iBinsAR;
-    quint32 m_iEvalPerBinAR;
+    quint32 m_iEvalsAR;
     QString m_sSpectrumMethod;
+    quint32 m_iDetrendMethod;
+    qint32 m_iSpectrumBins;
 
+    double m_dDataSampFreq;
+
+    double m_dFreqMin;
+    double m_dFreqMax;
+    Eigen::VectorXd m_pFrequencies;
+
+    FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo_orig;       /**< Input Fiff measurement info.*/
     FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo;            /**< Fiff measurement info.*/
     int                                             m_iNTimeSteps;
     int                                             m_iNChannels;
     //QSharedPointer<DummyYourWidget>                 m_pYourWidget;          /**< flag whether thread is running.*/
     QAction*                                        m_pActionShowYourWidget;/**< flag whether thread is running.*/
+    QPointer<QAction>                               m_pActionSelectSensors;         /**< show roi select widget */
+
+    QSharedPointer<DISPLIB::ChannelInfoModel>               m_pChannelInfoModel;            /**< channel info model. */
+    QSharedPointer<DISPLIB::ChannelSelectionView>           m_pChannelSelectionView;        /**< ChannelSelectionView. */
+    QList<int>                                    m_pSelectedChannels;
 
     IOBUFFER::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pSpectrumBuffer;         /**< Holds incoming data.*/
 

@@ -60,13 +60,16 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+        FormFiles/bandpowersetupwidget.cpp \
         bandpower.cpp
 
 HEADERS += \
+        FormFiles/bandpowersetupwidget.h \
         bandpower.h \
         bandpower_global.h
 
-FORMS +=
+FORMS += \
+    FormFiles/bandpowersetup.ui
 
 unix {
     target.path = /usr/lib

@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     linearclassifiersetupwidget.cpp
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
  *           Lorenz Esch <lesch@mgh.harvard.edu>;
  *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Definition of the LinearClassifierSetupWidget class.
  *
  */
 
@@ -38,11 +38,11 @@
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
+#include "linearclassifiersetupwidget.h"
+#include "../ui_linearclassifiersetup.h"
 
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../linearclassifier.h"
+#include "linearclassifierwidget.h"
 
 //=============================================================================================================
 // QT INCLUDES
@@ -54,34 +54,35 @@
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
+using namespace LINEARCLASSIFIERPLUGIN;
 using namespace Ui;
 
 //=============================================================================================================
 // DEFINE MEMBER METHODS
 //=============================================================================================================
 
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
+LinearClassifierSetupWidget::LinearClassifierSetupWidget(LinearClassifier* pLinearClassifier,const QString& sSettingsPath, bool bIsRunning, QWidget *parent)
 : QWidget(parent)
-, m_pRereference(pRereference)
+, m_pLinearClassifier(pLinearClassifier)
 {
-    ui = new RereferenceSetupWidgetClass();
+    ui = new LinearClassifierSetupWidgetClass();
     ui->setupUi(this);
 
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
+    LinearClassifierWidget* pLinearClassifierWidget = new LinearClassifierWidget(pLinearClassifier, sSettingsPath, bIsRunning);
 
     QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
+    settingsLayout->addWidget(pLinearClassifierWidget);
 
     ui->m_qGroupBox_Options->setLayout(settingsLayout);
 
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
+    connect(pLinearClassifierWidget,&LinearClassifierWidget::changeClassifierInputs,m_pLinearClassifier,&LinearClassifier::setNInputChannels);
+    connect(pLinearClassifierWidget,&LinearClassifierWidget::changeClassifierOutputs,m_pLinearClassifier,&LinearClassifier::setNOutputChannels);
+// cannot send eigen matrix over connector, need 2 step approach
+//    connect(pLinearClassifierWidget,&LinearClassifierWidget::changeClassifierMatrix,m_pLinearClassifier,&LinearClassifier::setLinearClassifierMatrix);
 }
 
 //=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+LinearClassifierSetupWidget::~LinearClassifierSetupWidget()
 {
 }

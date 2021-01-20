@@ -48,6 +48,9 @@
 
 #include <QSharedPointer>
 #include <QPointer>
+#include <QGraphicsPixmapItem>
+#include <QGridLayout>
+#include <QGraphicsView>
 #include <QMap>
 
 //=============================================================================================================
@@ -107,8 +110,7 @@ public:
      * @param [in] pTime         pointer to application time.
      * @param [in] parent        pointer to parent widget; If parent is 0, the new NumericWidget becomes a window. If parent is another widget, NumericWidget becomes a child window inside parent. NumericWidget is deleted when its parent is deleted.
      */
-    RealTimeSpectrumWidgetNew(QSharedPointer<SCMEASLIB::RealTimeSpectrum> pNE,
-                            QSharedPointer<QTime> &pTime,
+    RealTimeSpectrumWidgetNew(QSharedPointer<QTime> &pTime,
                             QWidget* parent = 0);
 
     typedef QSharedPointer<RealTimeSpectrumWidgetNew> SPtr;            /**< Shared pointer type for RealTimeSpectrumWidgetNew. */
@@ -142,38 +144,148 @@ public:
 
     //=========================================================================================================
     /**
+     * Initialise the DisplayWidget.
+     */
+    void initDisplayWidget();
+
+    //=========================================================================================================
+    /**
      * Initialise the SettingsWidget.
      */
     void initSettingsWidget();
 
-    //bool eventFilter(QObject *object, QEvent *event);
+    //=========================================================================================================
+    /**
+     * Is called when new data are available.
+     */
+    void setXLimit(int value);
+
+    //=========================================================================================================
+    /**
+     * Is called when new data are available.
+     */
+    void setXLimitSeconds(double value);
+
+    //=========================================================================================================
+    /**
+     * Sets the color map to use, e.g. "Jet", "Hot", "Bone"
+     *
+     * @param[in] p_sColorMap    The colormap to use
+     */
+    void setColorMap(const QString &p_sColorMap);
+
+    //=========================================================================================================
+    /**
+     * Enables/disables the colormap limits
+     *
+     * @param[in] bColormapLimits    enable/disable colormaplimit
+     */
+    void setColormapLimits(bool bColormapLimits);
+
+    //=========================================================================================================
+    /**
+     * sets maximum of the colormap
+     *
+     * @param[in] dColormapMax    The colormap maximum
+     */
+    void setColormapMax(double dColormapMax);
+
+    //=========================================================================================================
+    /**
+     * sets minimum of the colormap
+     *
+     * @param[in] dColormapMin    The colormap minimum
+     */
+    void setColormapMin(double dColormapMin);
 
 protected:
-    QPointer<QAction>                       m_pActionSelectModality;                /**< Modality selection action */
-    QPointer<QVBoxLayout>                   m_pFSLayout;                           /**< Widget layout */
-    QPointer<QLabel>                        m_pLabelInit;                           /**< Initialization label */
+    //=========================================================================================================
+    /**
+     * Updates data pixmap
+     */
+    void updateDataPixmap();
 
+    //=========================================================================================================
+    /**
+     * Updates coeffs pixmap
+     */
+    void updateCoeffsPixmap();
+
+    //=========================================================================================================
+    /**
+     * Updates coeffs pixmap
+     */
+    void updateColorbarLimitsPixmap();
+
+    //=========================================================================================================
+    /**
+     * Updates coeffs pixmap
+     */
+    void updateData();
+
+    //=========================================================================================================
+    /**
+     * The reimplemented resizeEvent
+     *
+     * @param[in] event    The event.
+     */
+    void resizeEvent(QResizeEvent* event);
+
+
+    QMutex                          m_qMutex;                                    /**< The threads mutex.*/
+
+    QString             m_sColorMap;                /**< The colorbar */
+    Eigen::MatrixXd     m_matSpectrumData;
+    Eigen::MatrixXd     m_matCentNormData;          /**< centralized and normalized data */
+    double              m_dMinValue;                /**< Minimal data value */
+    double              m_dMaxValue;                /**< Maximal data value */
+    double              m_dMinLimit;                /**< Minimal data value */
+    double              m_dMaxLimit;                /**< Maximal data value */
+    double              m_dXSampleRate;
+    double              m_dYSampleRate;
+    double              m_dMaxFreq;
+    double              m_dMinFreq;
+    int                 m_iXLimit;
+    int                 m_iDisplayIndex;
+    bool                                    m_bColormapLimits;
     bool                                    m_bInitialized;                         /**< Is Initialized */
 
+    QGridLayout *                       m_pLayout;
+    QGraphicsView *                 m_pView;
+    QLabel *                        m_pLabelInit;                           /**< Initialization label */
+    QGraphicsPixmapItem *           m_pFSPixmap;
+    QGraphicsScene *                m_pFSScene;
+    QGraphicsPixmapItem *           m_pItemPixmap;
+    QList<QGraphicsTextItem*> m_y_axis_values;
+    QList<QGraphicsLineItem*> m_y_axis_lines;
+    QGraphicsTextItem * m_y_axis_name;
+    QList<QGraphicsTextItem*> m_x_axis_values;
+    QList<QGraphicsLineItem*> m_x_axis_lines;
+    QGraphicsTextItem * m_x_axis_name;
+    QGraphicsSimpleTextItem * m_axis_zero_item;
+    QGraphicsSimpleTextItem * m_axis_one_item;
+
     QSharedPointer<FIFFLIB::FiffInfo>       m_pFiffInfo;                            /**< The Fiff Info. */
-
     QMap<QString, bool>                     m_modalityMap;                          /**< Map of different modalities. */
-
-    QPointer<DISPLIB::ImageSc>              m_pImageSc;                             /**< The covariance colormap */
 
     QSharedPointer<SCMEASLIB::RealTimeSpectrum>                 m_pFS;                              /**< The frequency spectrum measurement. */
 
-    Eigen::MatrixXd m_matSpectrumData;
-    float m_fLowerFrqBound;         /**< Lower frequency bound */
-    float m_fUpperFrqBound;         /**< Upper frequency bound */
-    int m_iDisplayLength;
-    int m_iDisplayIndex;
+    QRgb                (*pColorMapper)(double, const QString&);    /**< Function pointer to current colormap */
+
+signals:
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user changes the row height (zoom) of the channels.
+     */
+    void colormapMaxChanged(double value);
+
+    //=========================================================================================================
+    /**
+     * Emit this signal whenever the user changes the row height (zoom) of the channels.
+     */
+    void colormapMinChanged(double value);
+
 };
-
-//=============================================================================================================
-// INLINE DEFINITIONS
-//=============================================================================================================
-
 
 } // namespace SCDISPLIB
 

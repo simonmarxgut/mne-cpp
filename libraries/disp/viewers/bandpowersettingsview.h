@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     bandpowerettingsview.h
+ * @file     bandpowersettingsview.h
  * @author   Johannes Vorwerk <johannes.vorwerk@umti-tirol.at>
  *           Lorenz Esch <lesch@mgh.harvard.edu>;
  *           Christoph Dinh <chdinh@nmr.mgh.harvard.edu>
@@ -30,7 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Declaration of the BandpowerSettingsView Class.
+ * @brief    Declaration of the BandPowerSettingsView Class.
  *
  */
 
@@ -88,7 +88,7 @@ public:
 
     //=========================================================================================================
     /**
-     * Constructs a SpectrumSettingsView which is a child of parent.
+     * Constructs a BandPowerSettingsView which is a child of parent.
      *
      * @param [in] parent    parent of widget
      */
@@ -98,6 +98,10 @@ public:
                           double dMax = 20,
                           const QString& sSpectrumMethod = QString::fromStdString("AR"),
                           int iIntervallLength = 1,
+                          int iChannels = 1,
+                          int iBins = 1,
+                          int iDetrend = 0,
+                          bool bIsRunning = false,
                           QWidget *parent = 0,
                           Qt::WindowFlags f = Qt::Widget);
 
@@ -124,6 +128,13 @@ public:
      * Get max slider value
      */
     QString getMethod();
+
+    //=========================================================================================================
+    /**
+     * Emits all settings once.
+     *
+     */
+    void emitSignals();
 
 protected:
     //=========================================================================================================
@@ -168,19 +179,31 @@ protected:
 
     //=========================================================================================================
     /**
-     * Slot called when radio button method  change
+     * Slot called when radio button method change
      */
     void onClickedButtonMethod(int value);
 
     //=========================================================================================================
     /**
-     * Slot called when scaling spin boxes change
+     * Slot called when scaling spin box changes
      */
     void onUpdateSpinBoxIntervallLength();
 
     //=========================================================================================================
     /**
-     * Slot called when radio button method  change
+     * Slot called when number of channels spin box changes
+     */
+    void onUpdateSpinBoxChannels(int value);
+
+    //=========================================================================================================
+    /**
+     * Slot called when number of bins spin box changes
+     */
+    void onUpdateSpinBoxBins(int value);
+
+    //=========================================================================================================
+    /**
+     * Slot called when radio button method change
      */
     void onClickedButtonDetrend(int value);
 
@@ -190,7 +213,10 @@ protected:
     double      m_dMax;
     QString     m_sSpectrumMethod;
     int         m_iIntervallLength;
+    int         m_iChannels;
+    int         m_iBins;
     int         m_iDetrend;
+    bool        m_bIsRunning;
 
     Ui::BandPowerSettingsViewWidget *ui;
 
@@ -203,8 +229,10 @@ signals:
     void changeMethod(const QString& sSpectrumMethod);
     void changeIntervallLength(int value);
     void changeDetrend(int value);
+    void changeChannels(int value);
+    void changeBins(int value);
 
 };
 } // NAMESPACE
 
-#endif // SPECTRUMSETTINGSVIEW_H
+#endif // BANDPOWERSETTINGSVIEW_H

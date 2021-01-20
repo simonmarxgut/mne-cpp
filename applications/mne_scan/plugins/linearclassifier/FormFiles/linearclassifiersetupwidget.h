@@ -1,15 +1,14 @@
 //=============================================================================================================
 /**
- * @file     rereferencesetupwidget.cpp
+ * @file     linearclassifiersetupwidget.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>;
  *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
  * @since    0.1.0
  * @date     February, 2013
  *
  * @section  LICENSE
  *
- * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
+ * Copyright (C) 2013, Christoph Dinh, Viktor Klueber. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,58 +29,79 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceSetupWidget class.
+ * @brief    Contains the declaration of the LinearClassifierSetupWidget class.
  *
  */
+
+#ifndef LINEARCLASSIFIERSETUPWIDGET_H
+#define LINEARCLASSIFIERSETUPWIDGET_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencesetupwidget.h"
-#include "../ui_rereferencesetup.h"
-
-#include "../rereference.h"
-#include "rereferencewidget.h"
+#include "../linearclassifier.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
-#include <QDebug>
+#include <QtWidgets>
 
 //=============================================================================================================
-// USED NAMESPACES
+// FORWARD DECLARATIONS
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
-using namespace Ui;
-
-//=============================================================================================================
-// DEFINE MEMBER METHODS
-//=============================================================================================================
-
-RereferenceSetupWidget::RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent)
-: QWidget(parent)
-, m_pRereference(pRereference)
-{
-    ui = new RereferenceSetupWidgetClass();
-    ui->setupUi(this);
-
-    RereferenceWidget* pRereferenceWidget = new RereferenceWidget(sSettingsPath);
-
-    QVBoxLayout* settingsLayout = new QVBoxLayout;
-    settingsLayout->addWidget(pRereferenceWidget);
-
-    ui->m_qGroupBox_Options->setLayout(settingsLayout);
-
-    connect(pRereferenceWidget,&RereferenceWidget::changeEnabled,m_pRereference,&Rereference::changeEnabled);
-    connect(pRereferenceWidget,&RereferenceWidget::changeModality,m_pRereference,&Rereference::changeModality);
-    connect(pRereferenceWidget,&RereferenceWidget::changeMethod,m_pRereference,&Rereference::changeMethod);
+namespace Ui {
+    class LinearClassifierSetupWidgetClass;
 }
 
 //=============================================================================================================
+// DEFINE NAMESPACE REREFERENCETOOLBOXPLUGIN
+//=============================================================================================================
 
-RereferenceSetupWidget::~RereferenceSetupWidget()
+namespace LINEARCLASSIFIERPLUGIN
 {
-}
+
+//=============================================================================================================
+// REREFERENCETOOLBOXPLUGIN FORWARD DECLARATIONS
+//=============================================================================================================
+
+class LinearClassifier;
+
+//=============================================================================================================
+/**
+ * DECLARE CLASS RereferenceSetupWidget
+ *
+ * @brief The RereferenceSetupWidget class provides the Rereference-plugin configuration window.
+ */
+class LinearClassifierSetupWidget : public QWidget
+{
+    Q_OBJECT
+
+public:
+
+    //=========================================================================================================
+    /**
+     * Constructs a RereferenceSetupWidget which is a child of parent.
+     *
+     * @param [in] toolbox a pointer to the corresponding Rereference-plugin.
+     * @param [in] parent pointer to parent widget; If parent is 0, the new RereferenceSetupWidget becomes a window. If parent is another widget, RereferenceSetupWidget becomes a child window inside parent. RereferenceSetupWidget is deleted when its parent is deleted.
+     */
+    LinearClassifierSetupWidget(LinearClassifier* pLinearClassifier, const QString& sSettingsPath, bool bIsRunning,  QWidget *parent = 0);
+
+    //=========================================================================================================
+    /**
+     * Destroys the RereferenceSetupWidget.
+     * All RereferenceSetupWidget's children are deleted first. The application exits if RereferenceSetupWidget is the main widget.
+     */
+    ~LinearClassifierSetupWidget();
+
+private:
+    LinearClassifier*               m_pLinearClassifier;	/**< Holds a pointer to corresponding Rereference-plugin.*/
+
+    Ui::LinearClassifierSetupWidgetClass*  ui;              /**< Holds the user interface for the RereferenceSetupWidget.*/
+};
+} // NAMESPACE
+
+#endif // LINEARCLASSIFIERSETUPWIDGET_H

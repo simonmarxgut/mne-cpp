@@ -128,8 +128,8 @@ void Rereference::init()
         m_pRereferenceBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
 
     //add button
-    m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
-    m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
+    m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for rereferencing"),this);
+    m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for rereferencing"));
     connect(m_pActionSelectSensors.data(), &QAction::triggered,
             this, &Rereference::showSensorSelectionWidget);
     addPluginAction(m_pActionSelectSensors);
@@ -186,7 +186,7 @@ QString Rereference::getName() const
 
 QWidget* Rereference::setupWidget()
 {
-    RereferenceSetupWidget* setupWidget = new RereferenceSetupWidget(this);
+    RereferenceSetupWidget* setupWidget = new RereferenceSetupWidget(this, QString("MNESCAN/%1/").arg(this->getName()));
     return setupWidget;
 }
 
@@ -368,6 +368,7 @@ void Rereference::updateRereferenceMatrix()
     }
     case 1:
     {
+        //check whether conversion to sparse matrix makes sense
         Eigen::RowVectorXd rereferenceRowEEG = RowVectorXd::Zero(m_iNChannels);
         Eigen::RowVectorXd rereferenceRowMEG = RowVectorXd::Zero(m_iNChannels);
 
@@ -400,6 +401,7 @@ void Rereference::updateRereferenceMatrix()
     }
     case 2:
     {
+        //check whether conversion to sparse matrix makes sense
         Eigen::MatrixXd tempRereference;
         if(!IOUtils::read_eigen_matrix(tempRereference,m_sMatrixFilename))
         {

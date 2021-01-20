@@ -88,7 +88,7 @@ public:
      * @param [in] toolbox a pointer to the corresponding Rereference-plugin.
      * @param [in] parent pointer to parent widget; If parent is 0, the new RereferenceSetupWidget becomes a window. If parent is another widget, RereferenceSetupWidget becomes a child window inside parent. RereferenceSetupWidget is deleted when its parent is deleted.
      */
-    RereferenceSetupWidget(Rereference* pRereference, QWidget *parent = 0);
+    RereferenceSetupWidget(Rereference* pRereference, const QString& sSettingsPath, QWidget *parent = 0);
 
     //=========================================================================================================
     /**

@@ -1,15 +1,13 @@
 //=============================================================================================================
 /**
- * @file     rereferencewidget.cpp
- * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
+ * @file     rtspectrumviewsettings.cpp
+ * @author   Lorenz Esch <lesch@mgh.harvard.edu>
  * @since    0.1.0
- * @date     February, 2013
+ * @date     July, 2018
  *
  * @section  LICENSE
  *
- * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
+ * Copyright (C) 2018, Lorenz Esch. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,7 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Definition of the RereferenceWidget class.
+ * @brief    Definition of the RtSpectrumViewSettings Class.
  *
  */
 
@@ -38,15 +36,17 @@
 // INCLUDES
 //=============================================================================================================
 
-#include "rereferencewidget.h"
-#include "../ui_rereferencewidget.h"
-#include "../rereference.h"
+#include "rtspectrumviewsettings.h"
+
+#include "ui_rtspectrumviewsettings.h"
 
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
+#include <QColorDialog>
 #include <QSettings>
+#include <QDebug>
 
 //=============================================================================================================
 // EIGEN INCLUDES
@@ -56,58 +56,89 @@
 // USED NAMESPACES
 //=============================================================================================================
 
-using namespace REREFERENCEPLUGIN;
+using namespace DISPLIB;
 
 //=============================================================================================================
 // DEFINE MEMBER METHODS
 //=============================================================================================================
 
-RereferenceWidget::RereferenceWidget(const QString& sSettingsPath, QWidget *parent)
-: QWidget(parent)
-, ui(new Ui::RereferenceWidget)
+RtSpectrumViewSettings::RtSpectrumViewSettings(const QString &sSettingsPath, double dWindowLength, double dWindowStepsize,
+                                         QWidget *parent,
+                                         Qt::WindowFlags f)
+: QWidget(parent, f)
+, ui(new Ui::RtSpectrumViewSettingsWidget)
 , m_sSettingsPath(sSettingsPath)
-, m_bEnabled(true)
-, m_iModality(0)
-, m_iMethod(0)
 {
     ui->setupUi(this);
 
-    ui->radioButton_EEG->setChecked(true);
-    ui->radioButton_MEG->setChecked(false);
-    ui->radioButton_EMEG->setChecked(false);
-    ui->buttonGroupModality->setId(ui->radioButton_EEG,0);
-    ui->buttonGroupModality->setId(ui->radioButton_MEG,1);
-    ui->buttonGroupModality->setId(ui->radioButton_EMEG,2);
-    connect(ui->buttonGroupModality,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&RereferenceWidget::onClickedButtonModality);
+    this->setWindowTitle("Spectrum View Settings");
+    this->setMinimumWidth(330);
+    this->setMaximumWidth(330);
 
-    ui->radioButton_CAR->setChecked(true);
-    ui->radioButton_Selection->setChecked(false);
-    ui->radioButton_File->setChecked(false);
-    ui->buttonGroupMethod->setId(ui->radioButton_CAR,0);
-    ui->buttonGroupMethod->setId(ui->radioButton_Selection,1);
-    ui->buttonGroupMethod->setId(ui->radioButton_File,2);
-    connect(ui->buttonGroupMethod,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&RereferenceWidget::onClickedButtonMethod);
+    ui->doubleSpinBox_Maximum->setDecimals(10);
+    ui->doubleSpinBox_Minimum->setDecimals(10);
 
-    ui->checkBox_Enabled->setChecked(m_bEnabled);
-    connect(ui->checkBox_Enabled,&QCheckBox::stateChanged,this,&RereferenceWidget::onClickedCheckboxEnabled);
+    ui->doubleSpinBox_windowSize->setSingleStep(dWindowStepsize);
+    ui->doubleSpinBox_windowSize->setValue(dWindowLength);
 
-    connect(ui->pushButton_File,&QPushButton::released,this,&RereferenceWidget::onChangeFile);
+    connect(ui->doubleSpinBox_windowSize, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &RtSpectrumViewSettings::onTimeWindowChanged);
+    connect(ui->checkBox_Colormap, &QCheckBox::stateChanged, this, &RtSpectrumViewSettings::onFixColormapChanged);
+    connect(ui->doubleSpinBox_Maximum, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &RtSpectrumViewSettings::onColormapMaxChanged);
+    connect(ui->doubleSpinBox_Minimum, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &RtSpectrumViewSettings::onColormapMinChanged);
 
-    loadSettings(m_sSettingsPath);
+    //loadSettings(m_sSettingsPath);
 }
 
 //=============================================================================================================
 
-RereferenceWidget::~RereferenceWidget()
+RtSpectrumViewSettings::~RtSpectrumViewSettings()
 {
     saveSettings(m_sSettingsPath);
-
-    delete ui;
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::saveSettings(const QString& settingsPath)
+void RtSpectrumViewSettings::setWindowSize(int windowSize)
+{
+    ui->doubleSpinBox_windowSize->setValue(windowSize);
+
+    timeWindowChanged(windowSize);
+}
+
+//=============================================================================================================
+
+void RtSpectrumViewSettings::setColormapMax(double value)
+{
+    if(!ui->checkBox_Colormap->isChecked())
+    {
+        bool oldState = ui->doubleSpinBox_Maximum->blockSignals(true);
+        ui->doubleSpinBox_Maximum->setValue(value);
+        ui->doubleSpinBox_Maximum->blockSignals(oldState);
+    }
+}
+
+//=============================================================================================================
+
+void RtSpectrumViewSettings::setColormapMin(double value)
+{
+    if(!ui->checkBox_Colormap->isChecked())
+    {
+        bool oldState = ui->doubleSpinBox_Minimum->blockSignals(true);
+        ui->doubleSpinBox_Minimum->setValue(value);
+        ui->doubleSpinBox_Minimum->blockSignals(oldState);
+    }
+}
+
+//=============================================================================================================
+
+int RtSpectrumViewSettings::getWindowSize()
+{
+    return ui->doubleSpinBox_windowSize->value();
+}
+
+//=============================================================================================================
+
+void RtSpectrumViewSettings::saveSettings(const QString& settingsPath)
 {
     if(settingsPath.isEmpty()) {
         return;
@@ -115,69 +146,60 @@ void RereferenceWidget::saveSettings(const QString& settingsPath)
 
     QSettings settings;
 
-    settings.setValue(settingsPath + QString("/modality"), m_iModality);
-    settings.setValue(settingsPath + QString("/method"), m_iMethod);
+    settings.setValue(settingsPath + QString("/viewWindowSize"), getWindowSize());
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::loadSettings(const QString& settingsPath)
+void RtSpectrumViewSettings::loadSettings(const QString& settingsPath)
 {
     if(settingsPath.isEmpty()) {
         return;
     }
 
     QSettings settings;
-
-    m_iModality = settings.value(settingsPath + QString("/modality"), m_iModality).toInt();
-    m_iMethod = settings.value(settingsPath + QString("/method"), m_iMethod).toInt();
+    setWindowSize(settings.value(settingsPath + QString("/viewWindowSize"), 10).toDouble());
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedButtonModality(int value)
+void RtSpectrumViewSettings::onTimeWindowChanged(double value)
 {
-    m_iModality = value;
-
-    emit changeModality(m_iModality);
+    emit timeWindowChanged(value);
 
     saveSettings(m_sSettingsPath);
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedButtonMethod(int value)
+void RtSpectrumViewSettings::onMakeScreenshot()
 {
-    m_iMethod = value;
+    emit makeScreenshot(ui->m_comboBox_imageType->currentText());
+}
 
-    emit changeMethod(m_iMethod);
+//=============================================================================================================
+
+void RtSpectrumViewSettings::onFixColormapChanged(bool value)
+{
+    emit fixColormapChanged(value);
 
     saveSettings(m_sSettingsPath);
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::onClickedCheckboxEnabled(bool value)
+void RtSpectrumViewSettings::onColormapMaxChanged(double value)
 {
-    m_bEnabled = value;
+    emit colormapMaxChanged(value);
 
-    emit changeEnabled(m_bEnabled);
+    saveSettings(m_sSettingsPath);
 }
 
 //=============================================================================================================
 
-void RereferenceWidget::onChangeFile()
+void RtSpectrumViewSettings::onColormapMinChanged(double value)
 {
-    QString path = QFileDialog::getOpenFileName(this,
-                                                "Select EEG rereferencing file",
-                                                "resources/mne_scan/plugins/rereferencing/loc_files",
-                                                 tr("Simple text files (*.*)"));
+    emit colormapMinChanged(value);
 
-    if(path==NULL){
-        path = ui->lineEdit_File->text();
-    }
-
-    ui->lineEdit_File->setText(path);
-    //m_pEEGoSports->m_sElcFilePath = m_pUi->m_qLineEdit_EEGCap->text();
+    saveSettings(m_sSettingsPath);
 }
-

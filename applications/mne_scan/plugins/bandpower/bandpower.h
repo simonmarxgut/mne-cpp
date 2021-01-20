@@ -82,7 +82,7 @@ namespace BANDPOWERPLUGIN
 {
 
 //=============================================================================================================
-// SPECTRUMPLUGIN FORWARD DECLARATIONS
+// BANDPOWERPLUGIN FORWARD DECLARATIONS
 //=============================================================================================================
 
 //=============================================================================================================
@@ -181,6 +181,22 @@ public:
 
     //=========================================================================================================
     /**
+             * Changes the number of channels for which bandpower is analyzed.
+             *
+             * @param[in] channels  Number of channels.
+             */
+    void changeBandPowerChannels(quint32 channels);
+
+    //=========================================================================================================
+    /**
+             * Changes the number of bins in which bandpower is calculated for each channel.
+             *
+             * @param[in] bins  Number of bins.
+             */
+    void changeBandPowerBins(quint32 bins);
+
+    //=========================================================================================================
+    /**
              * Changes the order of the AR for spectrum estimation.
              *
              * @param[in] order  Order of the AR method.
@@ -197,39 +213,11 @@ public:
 
     //=========================================================================================================
     /**
-             * Calculate the bandpower from the (equally spaced) spectrum entries using Simpson's rule.
-             *
-             * @param[in] spectrumentries  Entries of the power spectrum.
-             */
-    static double bandpowerFromSpectrumEntries(const Eigen::VectorXd &spectrumentries, double stepsize);
-
-    //=========================================================================================================
-    /**
-             * Calculate the bandpower from the (equally spaced) spectrum entries using Simpson's rule.
-             *
-             * @param[in] spectrumentries  Entries of the power spectrum.
-             */
-    static double bandpowerFromSpectrumEntriesOffset(const Eigen::VectorXd &spectrumbins, const Eigen::VectorXd &spectrumentries,
-                                                     double minFreq, double maxFreq,
-                                                     double eps = std::numeric_limits<double>::epsilon());
-
-    //=========================================================================================================
-    /**
-             * Detrend equally spaced data.
-             *
-             * @param[in] data      Data matrix.
-             * @param[in] method    Detrending method (0 = none, 1 = remove mean, 2 = remove linear trend).
-             */
-    static Eigen::MatrixXd detrendData(const Eigen::MatrixXd &data, int method);
-
-    //=========================================================================================================
-    /**
-             * Linear detrend equally spaced data.
-             *
-             * @param[in] data      Data matrix.
-             */
-    static Eigen::MatrixXd linearDetrend(const Eigen::MatrixXd &data);
-
+     * Only evaluates the channels defined in the QStringList selectedChannels
+     *
+     * @param [in] selectedChannels list of all channel names which are currently selected in the selection manager.
+     */
+    void evaluateSelectedChannelsOnly(const QStringList& selectedChannels);
 
 protected:
     //=========================================================================================================
@@ -241,6 +229,13 @@ protected:
     //void showYourWidget();
 
 private:
+
+    //=========================================================================================================
+    /**
+     * Shows sensor selection widget
+     */
+    void showSensorSelectionWidget();
+
     QMutex                          m_qMutex;                                    /**< The threads mutex.*/
 
     bool        m_bProcessData;                     /**< If data should be received for processing */
@@ -252,20 +247,25 @@ private:
     QString m_sSpectrumMethod;
     quint32 m_iDetrendMethod;
 
+    qint32 m_iBandPowerChannels;
+    qint32 m_iBandPowerBins;
+
     double m_dDataSampFreq;
 
     double m_dFreqMin;
     double m_dFreqMax;
 
-    FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo;            /**< Fiff measurement info.*/
+    FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo_orig;       /**< Input Fiff measurement info.*/
+    FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo;            /**< Output Fiff measurement info.*/
     int                                             m_iNTimeSteps;
     int                                             m_iNChannels;
-    //QSharedPointer<DummyYourWidget>                 m_pYourWidget;          /**< flag whether thread is running.*/
-    QAction*                                        m_pActionShowYourWidget;/**< flag whether thread is running.*/
+    //QSharedPointer<DummyYourWidget>                 m_pYourWidget;
+    QAction*                                        m_pActionShowYourWidget;
     QPointer<QAction>                               m_pActionSelectSensors;         /**< show roi select widget */
 
     QSharedPointer<DISPLIB::ChannelInfoModel>               m_pChannelInfoModel;            /**< channel info model. */
     QSharedPointer<DISPLIB::ChannelSelectionView>           m_pChannelSelectionView;        /**< ChannelSelectionView. */
+    QList<int>                                    m_pSelectedChannels;
 
     IOBUFFER::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pBandPowerBuffer;         /**< Holds incoming data.*/
 

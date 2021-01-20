@@ -40,6 +40,8 @@
 
 #include "bandpower.h"
 
+#include "FormFiles/bandpowersetupwidget.h"
+
 #include "disp/viewers/bandpowersettingsview.h"
 #include "disp/viewers/arsettingsview.h"
 
@@ -85,6 +87,8 @@ BandPower::BandPower()
     , m_dFreqMax(30)
     , m_iNTimeSteps(-1)
     , m_iNChannels(-1)
+    , m_iBandPowerChannels(1)
+    , m_iBandPowerBins(1)
 {
 }
 
@@ -126,6 +130,14 @@ void BandPower::init()
     //Delete Buffer - will be initailzed with first incoming data
     if(!m_pBandPowerBuffer.isNull())
         m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
+
+    //add button
+    m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
+    m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
+    connect(m_pActionSelectSensors.data(), &QAction::triggered,
+            this, &BandPower::showSensorSelectionWidget);
+    addPluginAction(m_pActionSelectSensors);
+    m_pActionSelectSensors->setVisible(true);
 }
 
 //=============================================================================================================
@@ -177,7 +189,8 @@ QString BandPower::getName() const
 QWidget* BandPower::setupWidget()
 {
     //QWidget* setupWidget = new SpectrumSetupWidget(this);//widget is later distroyed by CentralWidget - so it has to be created everytime new
-    QWidget* setupWidget = new QWidget();//widget is later distroyed by CentralWidget - so it has to be created everytime new
+    BandPowerSetupWidget* setupWidget = new BandPowerSetupWidget(this);//widget is later distroyed by CentralWidget - so it has to be created everytime new
+
     return setupWidget;
 }
 
@@ -228,6 +241,28 @@ void BandPower::changeDetrendMethod(quint32 method)
 
 //=============================================================================================================
 
+void BandPower::changeBandPowerChannels(quint32 channels)
+{
+    QMutexLocker locker(&m_qMutex);
+
+    m_iBandPowerChannels = channels;
+
+    qDebug() << "m_iBandPowerChannels " << m_iBandPowerChannels;
+}
+
+//=============================================================================================================
+
+void BandPower::changeBandPowerBins(quint32 bins)
+{
+    QMutexLocker locker(&m_qMutex);
+
+    m_iBandPowerBins = bins;
+
+    qDebug() << "m_iBandPowerBins " << m_iBandPowerBins;
+}
+
+//=============================================================================================================
+
 void BandPower::changeAROrder(quint32 order)
 {
     QMutexLocker locker(&m_qMutex);
@@ -250,145 +285,23 @@ void BandPower::changeARNumEvaluationPoints(quint32 evaluationpoints)
 
 //=============================================================================================================
 
-double BandPower::bandpowerFromSpectrumEntries(const Eigen::VectorXd &spectrumentries, double stepsize)
+void BandPower::evaluateSelectedChannelsOnly(const QStringList &selectedChannels)
 {
-    double power;
+    QMutexLocker locker(&m_qMutex);
 
-    if (spectrumentries.size() % 2 == 0){
-        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size());
-        for (int i=0; i<spectrumentries.size()/2; i++)
-            weights(2*i+1) = 4.0;
-        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
-            weights(2*i+2) = 2.0;
-        power =  weights * spectrumentries;
-        power *= (stepsize / 3.0);
-    } else {
-        // Use Simpson's rule for n-1 entries and trapezoid rule for the last intervall and average over 2 cases
-        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size() - 1);
-        for (int i=0; i<spectrumentries.size()/2; i++)
-            weights(2*i+1) = 4.0;
-        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
-            weights(2*i+2) = 2.0;
-        power = weights * spectrumentries.head(spectrumentries.size()-1);
-        power = weights * spectrumentries.tail(spectrumentries.size()-1);
-        power += stepsize/2.0 * (spectrumentries(0) + spectrumentries(1) + spectrumentries(spectrumentries.size()-2) + spectrumentries(spectrumentries.size()-1));
-        power *= 0.5;
-    }
+    m_pSelectedChannels.clear();
 
-    return power;
-}
+    qDebug() << "selected channels";
 
-//=============================================================================================================
+    //Add selected channels to list
+    for(int i = 0; i<m_pFiffInfo_orig->ch_names.length(); i++) {
+        QString channel = m_pFiffInfo_orig->ch_names.value(i);
 
-double BandPower::bandpowerFromSpectrumEntriesOffset(const Eigen::VectorXd &spectrumbins, const Eigen::VectorXd &spectrumentries, double minFreq, double maxFreq, double eps)
-{
-    if ((minFreq < spectrumbins(0)) || (maxFreq > spectrumbins(spectrumbins.size()-1)))
-    {
-            qDebug() << "Warning: BandPower::bandpowerFromSpectrumEntries - minFreq or maxFreq out of Spectrum";
-    }
-
-    double stepsize = spectrumbins(1) - spectrumbins(0);
-
-    int minIndex, maxIndex;
-    double deltaMin, deltaMax;
-
-    Eigen::VectorXd spectrumbinsMin = spectrumbins;
-    spectrumbinsMin.array() -= minFreq;
-    spectrumbinsMin.cwiseAbs().minCoeff(&minIndex);
-    deltaMin = minFreq - spectrumbins(minIndex);
-
-    Eigen::VectorXd spectrumbinsMax = spectrumbins;
-    spectrumbinsMax.array() -= maxFreq;
-    spectrumbinsMax.cwiseAbs().minCoeff(&maxIndex);
-    deltaMax = maxFreq - spectrumbins(maxIndex);
-
-    if (std::abs(deltaMin) < eps && std::abs(deltaMax) < eps)
-        // everything fits perfectly, nothing to do here
-        return BandPower::bandpowerFromSpectrumEntries(spectrumentries,stepsize);
-    else
-    {
-        if (deltaMin > 0)
-            minIndex++;
-        else
-            deltaMin *= -1.0;
-
-        if (deltaMax < 0)
-        {
-            maxIndex--;
-            deltaMax *= -1.0;
+        if(selectedChannels.contains(channel)) {
+            m_pSelectedChannels.append(i);
+            qDebug() << i;
         }
-        double result = 0;
-
-        int diffIndex = maxIndex - minIndex;
-
-        if (diffIndex < 0) // minFreq and maxFreq in the same intervall (should not happen) apply trapezoid rule with linear interpolation
-        {
-            result = ((spectrumentries(minIndex) + (spectrumentries(minIndex-1)-spectrumentries(minIndex))*deltaMin/stepsize) +
-                      (spectrumentries(maxIndex) + (spectrumentries(maxIndex+1)-spectrumentries(maxIndex))*deltaMax/stepsize))*(maxFreq-minFreq)/2.0;
-        } else
-        {
-        // add the contributions from the incomplete bins
-        if (minIndex > 0)
-            result += (spectrumentries(minIndex) + (spectrumentries(minIndex-1)-spectrumentries(minIndex))*deltaMin/(2.0*stepsize))*deltaMin;
-
-        if (maxIndex < spectrumentries.size() - 1)
-            result += (spectrumentries(maxIndex) + (spectrumentries(maxIndex+1)-spectrumentries(maxIndex))*deltaMax/(2.0*stepsize))*deltaMax;
-
-        if (diffIndex > 1) // use Simpsons's rule for more than two points
-            result += BandPower::bandpowerFromSpectrumEntries(spectrumentries.segment(minIndex,maxIndex - minIndex + 1),stepsize);
-        else if (diffIndex > 0) // use trapezoid rule for two points
-            result += (spectrumentries(minIndex) + spectrumentries(maxIndex))*stepsize/2.0;
-        }
-
-        return result;
     }
-}
-
-//=============================================================================================================
-
-Eigen::MatrixXd BandPower::detrendData(const Eigen::MatrixXd &data, int method)
-{
-    switch(method)
-    {
-    case 0:
-        return data;
-    case 1:
-    {
-        Eigen::MatrixXd outputData = data.colwise() - data.rowwise().mean();
-        return outputData;
-    }
-    case 2:
-        return data;
-    default:
-        qDebug() << "BandPower::detrendData - unknown detrend method" << method << "Returning data";
-        return data;
-    }
-}
-
-//=============================================================================================================
-
-Eigen::MatrixXd BandPower::linearDetrend(const Eigen::MatrixXd &data)
-{
-    int n = data.cols();
-
-    Eigen::VectorXd linspaced = VectorXd::LinSpaced(1,0,n-1);
-
-    Eigen::VectorXd xy = data * linspaced;
-
-    double  linspaced_sum = n * (n - 1) / 2,
-            linspaced_sum2 = (n - 1) * n * (2 * n - 1) / 6;
-
-    Eigen::VectorXd data_rowwise_sum = data.rowwise().sum();
-
-    double denom_a = n*linspaced_sum2-linspaced_sum*linspaced_sum;
-
-    Eigen::VectorXd a = (n*xy - linspaced_sum*data_rowwise_sum)/denom_a;
-    Eigen::VectorXd b = (data_rowwise_sum - linspaced_sum*a)/n;
-
-    Eigen::MatrixXd data_noav = data.colwise() - b;
-    data_noav -= a*linspaced.transpose();
-
-    return data_noav;
 }
 
 //=============================================================================================================
@@ -407,6 +320,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
         if(!m_pFiffInfo) {                
 
             m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
+            m_pFiffInfo_orig = pRTMSA->info();
             //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
 
             //Init output - Uncomment this if you also uncommented the m_pDummyOutput in the constructor above
@@ -416,11 +330,11 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
             m_pFiffInfo->filename = "";
             m_pFiffInfo->bads.clear();
-            m_pFiffInfo->nchan = 2;
+            m_pFiffInfo->nchan = m_iBandPowerChannels * m_iBandPowerBins;
 
             QList<FiffChInfo> fakeChList;
             FiffChInfo fakeCh;
-            fakeCh.ch_name = "AR";
+            /*fakeCh.ch_name = "AR";
             fakeCh.kind = 502;
             fakeCh.range = -1;
             //fakeCh.setMinValue(0.5e-20);
@@ -428,10 +342,26 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             fakeCh.unit = -1;
             fakeChList.append(fakeCh);
             fakeCh.ch_name = "FFT";
-            fakeChList.append(fakeCh);
+            fakeChList.append(fakeCh);*/
+            fakeCh.ch_name = "BP ";
+            fakeCh.kind = 502;
+            fakeCh.range = -1;
+            //fakeCh.setMinValue(0.5e-20);
+            //fakeCh.setMaxValue(2e-20);
+            fakeCh.unit = -1;
+
+            QStringList fakeChNames;
+
+            for(int i=0; i<m_iBandPowerChannels; ++i)
+                for(int j=0; j<m_iBandPowerBins; ++j)
+                {
+                    fakeCh.ch_name = QString("BP %1-%2").arg(i).arg(j);
+                    fakeChList.append(fakeCh);
+                    fakeChNames.append(fakeCh.ch_name);
+                }
+
             m_pFiffInfo->chs = fakeChList;
 
-            QStringList fakeChNames = {"AR", "FFT"};
             m_pFiffInfo->ch_names = fakeChNames;
 
             m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
@@ -468,54 +398,48 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
 void BandPower::initPluginControlWidgets()
 {
-    if(m_pFiffInfo) {
-        QList<QWidget*> plControlWidgets;
+    QList<QWidget*> plControlWidgets;
 
-        BandPowerSettingsView* pBandPowerSettingsView = new BandPowerSettingsView(QString("MNESCAN/%1/").arg(this->getName()),m_dDataSampFreq,
-                                                                                  m_dFreqMin, m_dFreqMax, m_sSpectrumMethod, m_iIntervallLengthFactor);
-        pBandPowerSettingsView->setObjectName("group_tab_Settings_General");
-        plControlWidgets.append(pBandPowerSettingsView);
+    BandPowerSettingsView* pBandPowerSettingsView = new BandPowerSettingsView(QString("MNESCAN/%1/").arg(this->getName()),m_dDataSampFreq,
+                                                                              m_dFreqMin, m_dFreqMax, m_sSpectrumMethod, m_iIntervallLengthFactor,
+                                                                              m_iBandPowerChannels, m_iBandPowerBins, m_iDetrendMethod, true);
+    pBandPowerSettingsView->setObjectName("group_tab_Settings_General");
+    plControlWidgets.append(pBandPowerSettingsView);
 
-        connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMinMax,this,&BandPower::changeMinMaxFrequency);
-        connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMethod,this,&BandPower::changeSpectrumMethod);
-        //connect(pBandPowerSettingsView, &BandPowerSettingsView::changeIntervallLength,this,&BandPower::changeIntervallLengthFactor);
-        connect(pBandPowerSettingsView,&BandPowerSettingsView::changeDetrend,this,&BandPower::changeDetrendMethod);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMinMax,this,&BandPower::changeMinMaxFrequency);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeMethod,this,&BandPower::changeSpectrumMethod);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeIntervallLength,this,&BandPower::changeIntervallLengthFactor);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeDetrend,this,&BandPower::changeDetrendMethod);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeChannels,this,&BandPower::changeBandPowerChannels);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeBins,this,&BandPower::changeBandPowerBins);
 
-        ARSettingsView* pARSettingsView = new ARSettingsView(QString("MNESCAN/%1/").arg(this->getName()));
+    ARSettingsView* pARSettingsView = new ARSettingsView(QString("MNESCAN/%1/").arg(this->getName()));
 
-        pARSettingsView->setObjectName("group_tab_Settings_AR");
-        plControlWidgets.append(pARSettingsView);
+    pARSettingsView->setObjectName("group_tab_Settings_AR");
+    plControlWidgets.append(pARSettingsView);
 
-        connect(pARSettingsView, &ARSettingsView::changeAROrder,this,&BandPower::changeAROrder);
-        connect(pARSettingsView, &ARSettingsView::changeARNumEvaluationPoints,this,&BandPower::changeARNumEvaluationPoints);
+    connect(pARSettingsView, &ARSettingsView::changeAROrder,this,&BandPower::changeAROrder);
+    connect(pARSettingsView, &ARSettingsView::changeARNumEvaluationPoints,this,&BandPower::changeARNumEvaluationPoints);
 
-        //Channelselectionwidget
+    //Channelselectionwidget
 
-        //add button
-        m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view"),this);
-        m_pActionSelectSensors->setToolTip(tr("Show the channel selection view"));
-        connect(m_pActionSelectSensors.data(), &QAction::triggered,
-                this, &RealTimeMultiSampleArrayWidget::showSensorSelectionWidget);
-        addDisplayAction(m_pActionSelectSensors);
-        m_pActionSelectSensors->setVisible(true);
+    //Init channel selection manager
+    m_pChannelInfoModel = ChannelInfoModel::SPtr::create(m_pFiffInfo_orig,
+                                                         this);
 
-        //Init channel selection manager
-        m_pChannelInfoModel = ChannelInfoModel::SPtr::create(m_pFiffInfo,
-                                                             this);
+    m_pChannelSelectionView = ChannelSelectionView::SPtr::create(QString("MNESCAN/%1/").arg(this->getName()),
+                                                                 nullptr,
+                                                                 m_pChannelInfoModel,
+                                                                 Qt::Window);
+    m_pChannelSelectionView->setWindowTitle(tr(QString("%1: Channel Selection Window").arg(this->getName()).toUtf8()));
 
-        m_pChannelSelectionView = ChannelSelectionView::SPtr::create(QString("RTMSAW/%1").arg(sRTMSAWName),
-                                                                     this,
-                                                                     m_pChannelInfoModel,
-                                                                     Qt::Window);
-        m_pChannelSelectionView->setWindowTitle(tr(QString("%1: Channel Selection Window").arg(sRTMSAWName).toUtf8()));
+    connect(m_pChannelSelectionView.data(), &ChannelSelectionView::loadedLayoutMap,
+            m_pChannelInfoModel.data(), &ChannelInfoModel::layoutChanged);
 
-        connect(m_pChannelSelectionView.data(), &ChannelSelectionView::loadedLayoutMap,
-                m_pChannelInfoModel.data(), &ChannelInfoModel::layoutChanged);
+    connect(m_pChannelInfoModel.data(), &ChannelInfoModel::channelsMappedToLayout,
+            m_pChannelSelectionView.data(), &ChannelSelectionView::setCurrentlyMappedFiffChannels);
 
-        connect(m_pChannelInfoModel.data(), &ChannelInfoModel::channelsMappedToLayout,
-                m_pChannelSelectionView.data(), &ChannelSelectionView::setCurrentlyMappedFiffChannels);
-
-        connect(m_pChannelSelectionView.data(), &ChannelSelectionView::showSelectedChannelsOnly,
+    /*        connect(m_pChannelSelectionView.data(), &ChannelSelectionView::showSelectedChannelsOnly,
                 m_pChannelDataView.data(), &RtFiffRawView::showSelectedChannelsOnly);
 
         connect(m_pChannelDataView.data(), &RtFiffRawView::channelMarkingChanged,
@@ -525,12 +449,14 @@ void BandPower::initPluginControlWidgets()
                 m_pChannelSelectionView.data(), &ChannelSelectionView::setUserSelection);
 
         connect(m_pChannelDataView.data(), &RtFiffRawView::selectedChannelsResetted,
-                m_pChannelSelectionView.data(), &ChannelSelectionView::resetUserSelection);
+                m_pChannelSelectionView.data(), &ChannelSelectionView::resetUserSelection);*/
 
-        m_pChannelInfoModel->layoutChanged(m_pChannelSelectionView->getLayoutMap());
+    connect(m_pChannelSelectionView.data(), &ChannelSelectionView::showSelectedChannelsOnly,
+            this, &BandPower::evaluateSelectedChannelsOnly);
 
-        emit pluginControlWidgetsChanged(plControlWidgets, this->getName());
-    }
+    m_pChannelInfoModel->layoutChanged(m_pChannelSelectionView->getLayoutMap());
+
+    emit pluginControlWidgetsChanged(plControlWidgets, this->getName());
 }
 
 //=============================================================================================================
@@ -546,7 +472,7 @@ void BandPower::run()
     qDebug() << "dSampFreq" << dSampFreq;
 
     // Determine spectrum resolution - calculation only for FFT, but we keep it for both methods here to keep the resolution
-    int iNfft = static_cast<int> (iNSamples / m_iResolutionFactorFFT);
+    Eigen::VectorXd FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,dSampFreq);
 
     //
     // Create storage for data intervall
@@ -558,8 +484,10 @@ void BandPower::run()
         for(int i=0; i<m_iIntervallLengthFactor-1;++i){
             MatrixXd t_mat;
             while(!m_pBandPowerBuffer->pop(t_mat));
-            //check for size!
-            t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_mat;
+            if((t_mat.rows()==m_iNChannels)&&(t_mat.cols()==m_iNTimeSteps))
+                t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_mat;
+            else
+                qWarning() << "[BandPower::run] Data matrix has wrong format - not processing";
         }
 
     while(!isInterruptionRequested())
@@ -570,28 +498,69 @@ void BandPower::run()
 
         m_qMutex.lock();
 
+        if(t_NSampleMat.cols()/m_iNTimeSteps != m_iIntervallLengthFactor)
+        {
+            if (t_NSampleMat.cols()/m_iNTimeSteps > m_iIntervallLengthFactor) {
+                t_NSampleMat = t_NSampleMat.rightCols(m_iIntervallLengthFactor*m_iNTimeSteps); //right-most m_iNTimeSteps columns don't matter here, since they are overwritten anyway
+            } else {
+                Eigen::MatrixXd t_NSampleMatTemp(t_NSampleMat.rows(),m_iIntervallLengthFactor*m_iNTimeSteps);
+                t_NSampleMatTemp.leftCols(t_NSampleMat.cols()) = t_NSampleMat;
+                for(int i=0; i < (m_iIntervallLengthFactor - t_NSampleMat.cols()/m_iNTimeSteps); i++)
+                {
+                    t_NSampleMatTemp.block(0,t_NSampleMat.cols() + i*m_iNTimeSteps, t_mat.rows(), t_mat.cols());
+                    while(!m_pBandPowerBuffer->pop(t_mat));
+                }
+                t_NSampleMat = t_NSampleMatTemp;
+            }
+            iNSamples = m_iIntervallLengthFactor * m_iNTimeSteps;
+            FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,dSampFreq);
+            qDebug() << "[BandPower::run] FFT resolution " << (FFTFreqs[1] - FFTFreqs[0]);
+        }
         t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
+        MatrixXd t_SampleSubMat;
 
-        MatrixXd t_NSampleMat_noav = detrendData(t_NSampleMat,m_iDetrendMethod);
+        if (m_pSelectedChannels.length() == 0)
+            t_SampleSubMat = t_NSampleMat;
+        else {
+            if (m_pSelectedChannels.at(0) < t_NSampleMat.rows())
+                t_SampleSubMat = t_NSampleMat.block(m_pSelectedChannels.at(0),0,1,t_NSampleMat.cols());
+            else
+            {
+                t_SampleSubMat = t_NSampleMat;
+                qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(0) << "not in sample Matrix";
+            }
+            for (int i=1; i < m_pSelectedChannels.length(); ++i)
+            {
+                if (m_pSelectedChannels.at(i) < t_NSampleMat.rows()) {
+                    t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
+                    t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
+                }
+                else
+                    qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
+            }
+        }
+
+        MatrixXd t_SampleMat_noav = Spectral::detrendData(t_SampleSubMat,m_iDetrendMethod);
 
         QVector<VectorXd> matSpectrum;
-        double stepwidth = 0;
+        //double stepwidth = 0;
 
-//        if(m_sSpectrumMethod=="AR"){
-            MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iEvalsAR, 1, true);
+        Eigen::MatrixXd bandpower(m_iBandPowerChannels*m_iBandPowerBins,1);
 
-            QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_NSampleMat_noav,m_iOrderAR,true);
-
-            matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true); // has to be extended for multiple rows!
-
-            stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
-
-            MatrixXd meanbandpower(2,1);
-            meanbandpower(0,0) = 1e12*bandpowerFromSpectrumEntries(matSpectrum.at(31),stepwidth);
-
+        if(m_sSpectrumMethod=="AR"){
+            MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iBandPowerBins, m_iEvalsAR, true);
+            QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_SampleMat_noav,m_iOrderAR,true);
+            matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true);
+            //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
+            //for (int i=0; i < matSpectrum.length(); ++i)
+            //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
+            if(m_iBandPowerChannels <= matSpectrum.length())
+                qDebug() << "More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
+            for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i){
+                bandpower.block(i*m_iBandPowerBins,0,m_iBandPowerBins,1) = matSpectrum.at(i);
+            }
             matSpectrum.clear();
-
-//        } else if(m_sSpectrumMethod=="FFT") {
+        } else if(m_sSpectrumMethod=="FFT") {
             // Generate hanning window
             QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
             MatrixXd matTaps = tapers.first;
@@ -599,29 +568,50 @@ void BandPower::run()
 
             // Compute Spectrum
             QVector<MatrixXcd> matTaperedSpectrum;
-            matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(t_NSampleMat_noav, matTaps, iNfft, true);
+            matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(t_SampleMat_noav, matTaps, iNSamples, true);
 
-            matSpectrum = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNfft, dSampFreq, false);
+            matSpectrum = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNSamples, dSampFreq, false);
 
             // Select frequencies that fall within the band
-            Eigen::VectorXd FFTFreqs = Spectral::calculateFFTFreqs(iNfft,dSampFreq);
+            if(m_iBandPowerChannels <= matSpectrum.length())
+                qDebug() << "[BandPower::run] More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
 
-//        }
+            double binwidth = (m_dFreqMax-m_dFreqMin)/static_cast<double>(m_iBandPowerBins);
 
-            qDebug() << FFTFreqs(0) << FFTFreqs(FFTFreqs.size()-1) << m_dFreqMin << m_dFreqMax;
+            if (binwidth < (FFTFreqs[1] - FFTFreqs[0]))
+                qDebug() << "[BandPower::run] Selected bin width is smaller than FFT resolution";
 
-        meanbandpower(1,0) = 1e12*bandpowerFromSpectrumEntriesOffset(FFTFreqs,matSpectrum.at(31),m_dFreqMin,m_dFreqMax);
+            for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i)
+                for (int j=0; j<m_iBandPowerBins; ++j)
+                {
+                    bandpower(i*m_iBandPowerBins + j,1) = Spectral::bandpowerFromSpectrumEntriesOffset(FFTFreqs, matSpectrum.at(i), m_dFreqMin + j*binwidth, m_dFreqMin + (j+1)*binwidth);
+                }
+            matSpectrum.clear();
+        }
 
         m_qMutex.unlock();
 
         //Send the data to the connected plugins and the online display
-        m_pBandPowerOutput->data()->setValue(meanbandpower);
 
-        qDebug() << "Power:" << meanbandpower(0,0) << meanbandpower(1,0);
+        m_pBandPowerOutput->data()->setValue(bandpower);
+
+        qDebug() << "Power:" << bandpower(0,0);
 
         //move matrix entries one block to the left
-        if(m_iIntervallLengthFactor > 1)
-            for(int i=0; i<m_iIntervallLengthFactor-1; ++i)
+        if(t_NSampleMat.cols()/m_iNTimeSteps > 1)
+            for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i)
                 t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+    }
+}
+
+//=============================================================================================================
+
+void BandPower::showSensorSelectionWidget()
+{
+    if(m_pChannelSelectionView->isActiveWindow()) {
+        m_pChannelSelectionView->hide();
+    } else {
+        m_pChannelSelectionView->activateWindow();
+        m_pChannelSelectionView->show();
     }
 }

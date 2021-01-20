@@ -1,0 +1,12 @@
+#ifndef NORMALIZE_GLOBAL_H
+#define NORMALIZE_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(NORMALIZE_PLUGIN)
+#  define NORMALIZESHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define NORMALIZESHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // NORMALIZE_GLOBAL_H

@@ -68,7 +68,7 @@ using namespace DISPLIB;
 //=============================================================================================================
 
 BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, double dSampFreq, double dMin, double dMax,
-                                             const QString& sSpectrumMethod, int iIntervallLength, QWidget *parent, Qt::WindowFlags f)
+                                             const QString& sSpectrumMethod, int iIntervallLength, int iChannels, int iBins, int iDetrend, bool bIsRunning, QWidget *parent, Qt::WindowFlags f)
 : QWidget(parent, f)
 , ui(new Ui::BandPowerSettingsViewWidget)
 , m_sSettingsPath(sSettingsPath)
@@ -77,7 +77,10 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
 , m_dMax(dMax)
 , m_sSpectrumMethod(sSpectrumMethod)
 , m_iIntervallLength(iIntervallLength)
-, m_iDetrend(0)
+, m_iChannels(iChannels)
+, m_iBins(iBins)
+, m_iDetrend(iDetrend)
+, m_bIsRunning(bIsRunning)
 {
     ui->setupUi(this);
 
@@ -85,7 +88,22 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
     this->setMinimumWidth(330);
     this->setMaximumWidth(330);
 
-    //loadSettings(m_sSettingsPath);
+    if(m_iChannels < 1) {
+        ui->spinBoxChannels->hide();
+        ui->labelChannels->hide();
+    }
+
+    if (m_bIsRunning && !(m_iChannels < 1)){
+        ui->spinBoxChannels->setEnabled(false);
+        ui->spinBoxBins->setEnabled(false);
+    } else {
+        connect(ui->spinBoxChannels,static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this,&BandPowerSettingsView::onUpdateSpinBoxChannels);
+        connect(ui->spinBoxBins,static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+                this,&BandPowerSettingsView::onUpdateSpinBoxBins);
+    }
+
+    loadSettings(m_sSettingsPath);
 
     if(m_dMax <= m_dMin)
     {
@@ -136,8 +154,13 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
     connect(ui->horizontalSliderMax,&QSlider::sliderReleased,
             this,&BandPowerSettingsView::onUpdateSliderMaxScaling);
 
-    ui->radioButtonAR->setChecked(true);
-    ui->radioButtonFFT->setChecked(false);
+    if(m_sSpectrumMethod == "AR"){
+        ui->radioButtonAR->setChecked(true);
+        ui->radioButtonFFT->setChecked(false);
+    } else {
+        ui->radioButtonAR->setChecked(false);
+        ui->radioButtonFFT->setChecked(true);
+    }
     ui->buttonGroupMethod->setId(ui->radioButtonAR,0);
     ui->buttonGroupMethod->setId(ui->radioButtonFFT,1);
 
@@ -150,9 +173,9 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
     ui->radioButtonNoDetrend->setChecked(true);
     ui->radioButtonMean->setChecked(false);
     ui->radioButtonLinear->setChecked(false);
-    ui->buttonGroupMethod->setId(ui->radioButtonNoDetrend,0);
-    ui->buttonGroupMethod->setId(ui->radioButtonMean,1);
-    ui->buttonGroupMethod->setId(ui->radioButtonLinear,2);
+    ui->buttonGroupDetrend->setId(ui->radioButtonNoDetrend,0);
+    ui->buttonGroupDetrend->setId(ui->radioButtonMean,1);
+    ui->buttonGroupDetrend->setId(ui->radioButtonLinear,2);
 
     connect(ui->buttonGroupDetrend,static_cast<void (QButtonGroup::*)(int)>(&QButtonGroup::buttonClicked),this,&BandPowerSettingsView::onClickedButtonDetrend);
 
@@ -174,6 +197,9 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
         ui->radioButtonLinear->setChecked(true);
         break;
     }
+
+    ui->spinBoxChannels->setValue(m_iChannels);
+    ui->spinBoxBins->setValue(m_iBins);
 
 }
 
@@ -202,6 +228,8 @@ void BandPowerSettingsView::saveSettings(const QString& settingsPath)
     settings.setValue(settingsPath + QString("/spectrumMethod"), m_sSpectrumMethod);
     settings.setValue(settingsPath + QString("/intervallLength"), m_iIntervallLength);
     settings.setValue(settingsPath + QString("/detrend"), m_iDetrend);
+    settings.setValue(settingsPath + QString("/channels"), m_iChannels);
+    settings.setValue(settingsPath + QString("/bins"), m_iBins);
 
 }
 
@@ -221,7 +249,20 @@ void BandPowerSettingsView::loadSettings(const QString& settingsPath)
     m_sSpectrumMethod = settings.value(settingsPath + QString("/spectrumMethod"), "AR").toString();
     m_iIntervallLength = settings.value(settingsPath + QString("/intervallLength"), m_iIntervallLength).toInt();
     m_iDetrend = settings.value(settingsPath + QString("/detrend"), m_iDetrend).toInt();
+    m_iChannels = settings.value(settingsPath + QString("/channels"), m_iChannels).toInt();
+    m_iBins = settings.value(settingsPath + QString("/bins"), m_iBins).toInt();
+}
 
+//=============================================================================================================
+
+void BandPowerSettingsView::emitSignals()
+{
+    emit changeMinMax(m_dMin,m_dMax);
+    emit changeMethod(m_sSpectrumMethod);
+    emit changeIntervallLength(m_iIntervallLength);
+    emit changeDetrend(m_iDetrend);
+    emit changeChannels(m_iChannels);
+    emit changeBins(m_iBins);
 }
 
 //=============================================================================================================
@@ -382,11 +423,35 @@ void BandPowerSettingsView::onUpdateSpinBoxIntervallLength()
     saveSettings(m_sSettingsPath);
 }
 
+//=============================================================================================================
+
 void BandPowerSettingsView::onClickedButtonDetrend(int value)
 {
     m_iDetrend = value;
 
     emit changeDetrend(m_iDetrend);
+
+    saveSettings(m_sSettingsPath);
+}
+
+//=============================================================================================================
+
+void BandPowerSettingsView::onUpdateSpinBoxChannels(int value)
+{
+    m_iChannels = value;
+
+    emit changeChannels(m_iChannels);
+
+    saveSettings(m_sSettingsPath);
+}
+
+//=============================================================================================================
+
+void BandPowerSettingsView::onUpdateSpinBoxBins(int value)
+{
+    m_iBins = value;
+
+    emit changeBins(m_iBins);
 
     saveSettings(m_sSettingsPath);
 }

@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     rereferencewidget.h
+ * @file     normalizewidget.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
  *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>;
  *           Lorenz Esch <lesch@mgh.harvard.edu>
@@ -30,12 +30,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Contains the declaration of the RereferenceWidget class.
+ * @brief    Contains the declaration of the NormalizeWidget class.
  *
  */
 
-#ifndef REREFERENCEWIDGET_H
-#define REREFERENCEWIDGET_H
+#ifndef NORMALIZEWIDGET_H
+#define NORMALIZEWIDGET_H
 
 //=============================================================================================================
 // INCLUDES
@@ -56,14 +56,14 @@
 //=============================================================================================================
 
 namespace Ui{
-    class RereferenceWidget;
+    class NormalizeWidget;
 }
 
 //=============================================================================================================
-// DEFINE NAMESPACE REREFERENCEPLUGIN
+// DEFINE NAMESPACE NORMALIZEPLUGIN
 //=============================================================================================================
 
-namespace REREFERENCEPLUGIN
+namespace NORMALIZEPLUGIN
 {
 
 //=============================================================================================================
@@ -72,30 +72,36 @@ namespace REREFERENCEPLUGIN
 
 //=============================================================================================================
 /**
- * DECLARE CLASS RereferenceYourWidget
+ * DECLARE CLASS NormalizeWidget
  *
- * @brief The Rereference class provides a rereference widget.
+ * @brief The NormalizeWidget class provides a normalize widget.
  */
-class RereferenceWidget : public QWidget
+class NormalizeWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    typedef QSharedPointer<RereferenceWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
-    typedef QSharedPointer<RereferenceWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
+    typedef QSharedPointer<NormalizeWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
+    typedef QSharedPointer<NormalizeWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
 
     //=========================================================================================================
     /**
      * Constructs a DummyToolbox.
      */
-    explicit RereferenceWidget(const QString& sSettingsPath = "",
+    explicit NormalizeWidget(const QString& sSettingsPath = "",
+                             double dDataSampFreq = -1,
+                             int iDataBlockLength = -1,
+                             bool bEnabled = true,
+                             int iMethod = 0,
+                             int iModality = 0,
+                             double dIntervallLength = 1.0,
                              QWidget *parent = 0);
 
     //=========================================================================================================
     /**
      * Destroys the DummyToolbox.
      */
-    ~RereferenceWidget();
+    ~NormalizeWidget();
 
 protected:
     //=========================================================================================================
@@ -134,16 +140,26 @@ protected:
 
     //=========================================================================================================
     /**
-     * Slot called when input reference matrix file change
+     * Slot called when intervall length changed using data blocks spinbox
      */
-    void onChangeFile();
+    void onChangeIntervallLengthDataBlocks(int value);
+
+    //=========================================================================================================
+    /**
+     * Slot called when intervall length changed using seconds spinbox
+     */
+    void onChangeIntervallLengthSeconds(double value);
+
 
     QString                     m_sSettingsPath;    /**< The settings path to store the GUI settings to. */
+    double m_dDataSampFreq;
+    int m_iDataBlockLength;
     bool m_bEnabled;
     int m_iModality;
     int m_iMethod;
+    double m_dIntervallLength;
 
-    Ui::RereferenceWidget*     ui;              /**< The UI class specified in the designer. */
+    Ui::NormalizeWidget*     ui;              /**< The UI class specified in the designer. */
 
 signals:
     //=========================================================================================================
@@ -153,7 +169,8 @@ signals:
     void changeEnabled(bool value);
     void changeModality(int value);
     void changeMethod(int value);
+    void changeIntervallLength(double value);
 };
 }   //namespace
 
-#endif // REREFERENCEWIDGET_H
+#endif // NORMALIZEWIDGET_H

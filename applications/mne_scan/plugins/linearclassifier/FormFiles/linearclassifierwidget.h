@@ -1,6 +1,6 @@
 //=============================================================================================================
 /**
- * @file     rereferencewidget.h
+ * @file     linearclassifierwidget.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
  *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>;
  *           Lorenz Esch <lesch@mgh.harvard.edu>
@@ -30,16 +30,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Contains the declaration of the RereferenceWidget class.
+ * @brief    Contains the declaration of the LinearClassifierWidget class.
  *
  */
 
-#ifndef REREFERENCEWIDGET_H
-#define REREFERENCEWIDGET_H
+#ifndef LINEARCLASSIFIERWIDGET_H
+#define LINEARCLASSIFIERWIDGET_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
+
+#include "../linearclassifier.h"
 
 //=============================================================================================================
 // QT INCLUDES
@@ -56,14 +58,14 @@
 //=============================================================================================================
 
 namespace Ui{
-    class RereferenceWidget;
+    class LinearClassifierWidget;
 }
 
 //=============================================================================================================
-// DEFINE NAMESPACE REREFERENCEPLUGIN
+// DEFINE NAMESPACE LINEARCLASSIFIERPLUGIN
 //=============================================================================================================
 
-namespace REREFERENCEPLUGIN
+namespace LINEARCLASSIFIERPLUGIN
 {
 
 //=============================================================================================================
@@ -72,30 +74,30 @@ namespace REREFERENCEPLUGIN
 
 //=============================================================================================================
 /**
- * DECLARE CLASS RereferenceYourWidget
+ * DECLARE CLASS LinearClassifierWidget
  *
- * @brief The Rereference class provides a rereference widget.
+ * @brief The LinearClassifier class provides a rereference widget.
  */
-class RereferenceWidget : public QWidget
+class LinearClassifierWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    typedef QSharedPointer<RereferenceWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
-    typedef QSharedPointer<RereferenceWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
+    typedef QSharedPointer<LinearClassifierWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
+    typedef QSharedPointer<LinearClassifierWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
 
     //=========================================================================================================
     /**
-     * Constructs a DummyToolbox.
+     * Constructs a LinearClassifierWidget.
      */
-    explicit RereferenceWidget(const QString& sSettingsPath = "",
+    explicit LinearClassifierWidget(LinearClassifier* pLinearClassifier, const QString& sSettingsPath = "", bool bIsRunning = false,
                              QWidget *parent = 0);
 
     //=========================================================================================================
     /**
-     * Destroys the DummyToolbox.
+     * Destroys the LinearClassifierWidget.
      */
-    ~RereferenceWidget();
+    ~LinearClassifierWidget();
 
 protected:
     //=========================================================================================================
@@ -116,44 +118,110 @@ protected:
 
     //=========================================================================================================
     /**
-     * Slot called when radio button modality change
+     * Slot called when input classifier matrix file change
      */
-    void onClickedButtonModality(int value);
+    void onChangeInputFile();
 
     //=========================================================================================================
     /**
-     * Slot called when radio button method change
+     * Slot called when input classifier matrix file change
      */
-    void onClickedButtonMethod(int value);
+    void onChangeOutputFile();
 
     //=========================================================================================================
     /**
-     * Slot called when checkbox enabled change
+     * Slot called when input classifier matrix changed in widget
      */
-    void onClickedCheckboxEnabled(bool value);
+    void onChangeMatrixWidget();
 
     //=========================================================================================================
     /**
-     * Slot called when input reference matrix file change
+     * Slot called when input classifier matrix changed externally
      */
-    void onChangeFile();
+    void onChangeMatrixExternal();
+    //=========================================================================================================
+    /**
+     * Slot called when number of inputs changes
+     */
+    void onChangeInputs();
+
+    //=========================================================================================================
+    /**
+     * Slot called when number of outputs changes
+     */
+    void onChangeOutputs();
+
+    //=========================================================================================================
+    /**
+     * Slot called when number of matrix rows changes
+     */
+    void changeMatrixRows(int value);
+
+    //=========================================================================================================
+    /**
+     * Slot called when number of matrix columns changes
+     */
+    void changeMatrixColumns(int value);
+
+    //=========================================================================================================
+    /**
+     * Returns the classifier matrix
+     */
+    Eigen::MatrixXd getClassifierMatrix();
+
+    //=========================================================================================================
+    /**
+     * Read input matrix
+     *
+     */
+    bool readInputMatrix();
+
+    //=========================================================================================================
+    /**
+     * Save output matrix
+     *
+     */
+    bool saveOutputMatrix();
+
+    LinearClassifier*               m_pLinearClassifier;	/**< Holds a pointer to corresponding Rereference-plugin.*/
 
     QString                     m_sSettingsPath;    /**< The settings path to store the GUI settings to. */
-    bool m_bEnabled;
-    int m_iModality;
-    int m_iMethod;
+    int                         m_iInputs;
+    int                         m_iOutputs;
+    bool                        m_bIsRunning;
+    Eigen::MatrixXd             m_pClassifierMatrix;
+    QString                                         m_sOutputMatrixFilename;
+    QString                                         m_sInputMatrixFilename;
 
-    Ui::RereferenceWidget*     ui;              /**< The UI class specified in the designer. */
+    Ui::LinearClassifierWidget*     ui;              /**< The UI class specified in the designer. */
 
 signals:
     //=========================================================================================================
     /**
      * Emitted whenever the settings changed and are ready to be retreived.
      */
-    void changeEnabled(bool value);
-    void changeModality(int value);
-    void changeMethod(int value);
+    void changeClassifierMatrix();
+    void changeClassifierInputs(int value);
+    void changeClassifierOutputs(int value);
+};
+
+class SpinBoxDelegate : public QStyledItemDelegate
+{
+    Q_OBJECT
+
+public:
+    SpinBoxDelegate(QObject *parent = nullptr);
+
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const override;
+
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const override;
+
+    void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option,
+                              const QModelIndex &index) const override;
 };
 }   //namespace
 
-#endif // REREFERENCEWIDGET_H
+#endif // LINEARCLASSIFIERWIDGET_H

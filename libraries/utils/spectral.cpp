@@ -474,7 +474,7 @@ Eigen::MatrixXcd Spectral::generateARSpectraWeights(double dBottomFreq, double d
     else
     {
         delta = (dTopFreq - dBottomFreq) / ((iBins - 1) * iEvalPerBin);
-        tempfreq = twopi * (dBottomFreq - delta/2);
+        tempfreq = twopi * (dBottomFreq - (iEvalPerBin - 1)*delta/2);
     }
 
     double deltapi = twopi * delta;
@@ -482,11 +482,13 @@ Eigen::MatrixXcd Spectral::generateARSpectraWeights(double dBottomFreq, double d
     Eigen::MatrixXcd mat_Theta = MatrixXcd::Zero(iBins,iEvalPerBin);
 
     for (int i=0; i<iBins; i++)
+    {
         for (int j=0; j<iEvalPerBin; j++)
         {
             mat_Theta(i,j) = std::polar<double>(1.0,tempfreq);
             tempfreq += deltapi;
         }
+    }
 
     return mat_Theta;
 }
@@ -549,6 +551,151 @@ QVector<Eigen::VectorXd> Spectral::psdFromARSpectra(const QVector<QPair<Eigen::V
     }
 
     return finalResult;
+}
+
+//=============================================================================================================
+
+double Spectral::bandpowerFromSpectrumEntries(const Eigen::VectorXd &spectrumentries, double stepsize)
+{
+    double power;
+
+    if (spectrumentries.size() % 2 == 0){
+        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size());
+        for (int i=0; i<spectrumentries.size()/2; i++)
+            weights(2*i+1) = 4.0;
+        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
+            weights(2*i+2) = 2.0;
+        power =  weights * spectrumentries;
+        power *= (stepsize / 3.0);
+    } else {
+        // Use Simpson's rule for n-1 entries and trapezoid rule for the last intervall and average over 2 cases
+        Eigen::RowVectorXd weights = RowVectorXd::Ones(spectrumentries.size() - 1);
+        for (int i=0; i<spectrumentries.size()/2; i++)
+            weights(2*i+1) = 4.0;
+        for (int i=0; i<spectrumentries.size()/2 - 1; i++)
+            weights(2*i+2) = 2.0;
+        power = weights * spectrumentries.head(spectrumentries.size()-1);
+        power = weights * spectrumentries.tail(spectrumentries.size()-1);
+        power += stepsize/2.0 * (spectrumentries(0) + spectrumentries(1) + spectrumentries(spectrumentries.size()-2) + spectrumentries(spectrumentries.size()-1));
+        power *= 0.5;
+    }
+
+    return power;
+}
+
+//=============================================================================================================
+
+double Spectral::bandpowerFromSpectrumEntriesOffset(const Eigen::VectorXd &spectrumbins, const Eigen::VectorXd &spectrumentries, double minFreq, double maxFreq, double eps)
+{
+    if ((minFreq < spectrumbins(0)) || (maxFreq > spectrumbins(spectrumbins.size()-1)))
+    {
+            qWarning() << "[BandPower::bandpowerFromSpectrumEntries] minFreq or maxFreq out of Spectrum";
+    }
+
+    double stepsize = spectrumbins(1) - spectrumbins(0);
+
+    int minIndex, maxIndex;
+    double deltaMin, deltaMax;
+
+    Eigen::VectorXd spectrumbinsMin = spectrumbins;
+    spectrumbinsMin.array() -= minFreq;
+    spectrumbinsMin.cwiseAbs().minCoeff(&minIndex);
+    deltaMin = minFreq - spectrumbins(minIndex);
+
+    Eigen::VectorXd spectrumbinsMax = spectrumbins;
+    spectrumbinsMax.array() -= maxFreq;
+    spectrumbinsMax.cwiseAbs().minCoeff(&maxIndex);
+    deltaMax = maxFreq - spectrumbins(maxIndex);
+
+    if (std::abs(deltaMin) < eps && std::abs(deltaMax) < eps)
+        // everything fits perfectly, nothing to do here
+        return bandpowerFromSpectrumEntries(spectrumentries,stepsize);
+    else
+    {
+        if (deltaMin > 0)
+            minIndex++;
+        else
+            deltaMin *= -1.0;
+
+        if (deltaMax < 0)
+        {
+            maxIndex--;
+            deltaMax *= -1.0;
+        }
+        double result = 0;
+
+        int diffIndex = maxIndex - minIndex;
+
+/*        if (diffIndex == 0) // minFreq and maxFreq in the same intervall (should not happen) apply trapezoid rule with linear interpolation
+        {
+            result = ((spectrumentries(minIndex) + (spectrumentries(minIndex-1)-spectrumentries(minIndex))*deltaMin/stepsize) +
+                      (spectrumentries(maxIndex) + (spectrumentries(maxIndex+1)-spectrumentries(maxIndex))*deltaMax/stepsize))*(maxFreq-minFreq)/2.0;
+        } else
+        {*/
+        // add the contributions from the incomplete bins
+        if (minIndex > 0)
+            result += (spectrumentries(minIndex) + (spectrumentries(minIndex-1)-spectrumentries(minIndex))*deltaMin/stepsize)*deltaMin/2.0;
+
+        if (maxIndex < spectrumentries.size() - 1)
+            result += (spectrumentries(maxIndex) + (spectrumentries(maxIndex+1)-spectrumentries(maxIndex))*deltaMax/stepsize)*deltaMax/2.0;
+
+        if (diffIndex > 1) // use Simpsons's rule for more than two points
+            result += bandpowerFromSpectrumEntries(spectrumentries.segment(minIndex,maxIndex - minIndex + 1),stepsize);
+        else if (diffIndex > 0) // use trapezoid rule for two points
+            result += (spectrumentries(minIndex) + spectrumentries(maxIndex))*stepsize/2.0;
+//        }
+
+        return result;
+    }
+}
+
+//=============================================================================================================
+
+Eigen::MatrixXd Spectral::detrendData(const Eigen::MatrixXd &data, int method)
+{
+    switch(method)
+    {
+    case 0:
+        return data;
+    case 1:
+    {
+        Eigen::MatrixXd outputData = data.colwise() - data.rowwise().mean();
+        return outputData;
+    }
+    case 2:
+    {
+        Eigen::MatrixXd outputData = linearDetrend(data);
+        return outputData;    }
+    default:
+        qDebug() << "[Spectral::detrendData] unknown detrend method " << method << " Returning data";
+        return data;
+    }
+}
+
+//=============================================================================================================
+
+Eigen::MatrixXd Spectral::linearDetrend(const Eigen::MatrixXd &data)
+{
+    int n = data.cols();
+
+    Eigen::VectorXd linspaced = VectorXd::LinSpaced(n,0,n-1);
+
+    Eigen::VectorXd xy = data * linspaced;
+
+    double  linspaced_sum = n * (n - 1) / 2,
+            linspaced_sum2 = (n - 1) * n * (2 * n - 1) / 6;
+
+    Eigen::VectorXd data_rowwise_sum = data.rowwise().sum();
+
+    double denom_a = n*linspaced_sum2-linspaced_sum*linspaced_sum;
+
+    Eigen::VectorXd a = (n*xy - linspaced_sum*data_rowwise_sum)/denom_a;
+    Eigen::VectorXd b = (data_rowwise_sum - linspaced_sum*a)/n;
+
+    Eigen::MatrixXd data_noav = data.colwise() - b;
+    data_noav -= a*linspaced.transpose();
+
+    return data_noav;
 }
 
 //=============================================================================================================

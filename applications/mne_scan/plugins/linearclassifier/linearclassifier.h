@@ -1,15 +1,15 @@
 //=============================================================================================================
 /**
- * @file     rereferencewidget.h
+ * @file     linearclassifier.h
  * @author   Christoph Dinh <chdinh@nmr.mgh.harvard.edu>;
- *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>;
- *           Lorenz Esch <lesch@mgh.harvard.edu>
+ *           Lorenz Esch <lesch@mgh.harvard.edu>;
+ *           Viktor Klueber <Viktor.Klueber@tu-ilmenau.de>
  * @since    0.1.0
- * @date     January, 2016
+ * @date     February, 2013
  *
  * @section  LICENSE
  *
- * Copyright (C) 2016, Christoph Dinh, Viktor Klueber, Lorenz Esch. All rights reserved.
+ * Copyright (C) 2013, Christoph Dinh, Lorenz Esch, Viktor Klueber. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -30,22 +30,30 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Contains the declaration of the RereferenceWidget class.
+ * @brief    Contains the declaration of the LinearClassifier class.
  *
  */
 
-#ifndef REREFERENCEWIDGET_H
-#define REREFERENCEWIDGET_H
+#ifndef LINEARCLASSIFIER_H
+#define LINEARCLASSIFIER_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
 
+#include "linearclassifier_global.h"
+
+#include <scShared/Interfaces/IAlgorithm.h>
+#include <utils/generics/circularbuffer.h>
+#include <scMeas/realtimemultisamplearray.h>
+
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
 
-#include <QWidget>
+#include <QtWidgets>
+#include <QtCore/QtPlugin>
+#include <QDebug>
 
 //=============================================================================================================
 // EIGEN INCLUDES
@@ -55,105 +63,130 @@
 // FORWARD DECLARATIONS
 //=============================================================================================================
 
-namespace Ui{
-    class RereferenceWidget;
+namespace SCMEASLIB {
+    class RealTimeMultiSampleArray;
 }
 
 //=============================================================================================================
 // DEFINE NAMESPACE REREFERENCEPLUGIN
 //=============================================================================================================
 
-namespace REREFERENCEPLUGIN
+namespace LINEARCLASSIFIERPLUGIN
 {
 
 //=============================================================================================================
-// FORWARD DECLARATIONS
+// REREFERENCEPLUGIN FORWARD DECLARATIONS
 //=============================================================================================================
 
 //=============================================================================================================
 /**
- * DECLARE CLASS RereferenceYourWidget
+ * DECLARE CLASS LinearClassifier
  *
- * @brief The Rereference class provides a rereference widget.
+ * @brief The LinearClassifier class provides a dummy algorithm structure.
  */
-class RereferenceWidget : public QWidget
+
+class LINEARCLASSIFIERSHARED_EXPORT LinearClassifier : public SCSHAREDLIB::IAlgorithm
 {
     Q_OBJECT
+    Q_PLUGIN_METADATA(IID "scsharedlib/1.0" FILE "linearclassifier.json") //New Qt5 Plugin system replaces Q_EXPORT_PLUGIN2 macro
+    // Use the Q_INTERFACES() macro to tell Qt's meta-object system about the interfaces
+    Q_INTERFACES(SCSHAREDLIB::IAlgorithm)
 
 public:
-    typedef QSharedPointer<RereferenceWidget> SPtr;         /**< Shared pointer type for RereferenceWidget. */
-    typedef QSharedPointer<RereferenceWidget> ConstSPtr;    /**< Const shared pointer type for RereferenceWidget. */
+    //=========================================================================================================
+    /**
+     * Constructs a rereference.
+     */
+    LinearClassifier();
 
     //=========================================================================================================
     /**
-     * Constructs a DummyToolbox.
+     * Destroys the rereference.
      */
-    explicit RereferenceWidget(const QString& sSettingsPath = "",
-                             QWidget *parent = 0);
+    ~LinearClassifier();
 
     //=========================================================================================================
     /**
-     * Destroys the DummyToolbox.
+     * IAlgorithm functions
      */
-    ~RereferenceWidget();
+    virtual QSharedPointer<SCSHAREDLIB::IPlugin> clone() const;
+    virtual void init();
+    virtual void unload();
+    virtual bool start();
+    virtual bool stop();
+    virtual SCSHAREDLIB::IPlugin::PluginType getType() const;
+    virtual QString getName() const;
+    virtual QWidget* setupWidget();
+
+    //=========================================================================================================
+    /**
+     * Udates the pugin with new (incoming) data.
+     *
+     * @param[in] pMeasurement    The incoming data in form of a generalized Measurement.
+     */
+    void update(SCMEASLIB::Measurement::SPtr pMeasurement);
+
+    //=========================================================================================================
+    /**
+     * Sets the number of input channels
+     *
+     * @param[in] iNInputChannels    Number of input channels.
+     */
+    void setNInputChannels(int iNInputChannels);
+
+    //=========================================================================================================
+    /**
+     * Sets the number of output channels
+     *
+     * @param[in] iNOutputChannels    Number of output channels.
+     */
+    void setNOutputChannels(int iNOutputChannels);
+
+    //=========================================================================================================
+    /**
+     * Sets the linear classifier matrix
+     *
+     * @param[in] matrix    The classifiermatrix.
+     */
+    void setLinearClassifierMatrix(Eigen::MatrixXd matrix);
 
 protected:
     //=========================================================================================================
     /**
-     * Saves all important settings of this view via QSettings.
-     *
-     * @param[in] settingsPath        the path to store the settings to.
+     * Inits widgets which are used to control this plugin, then emits them in form of a QList.
      */
-    void saveSettings(const QString& settingsPath);
+    virtual void initPluginControlWidgets();
 
     //=========================================================================================================
     /**
-     * Loads and inits all important settings of this view via QSettings.
-     *
-     * @param[in] settingsPath        the path to load the settings from.
+     * IAlgorithm function
      */
-    void loadSettings(const QString& settingsPath);
+    virtual void run();
 
-    //=========================================================================================================
-    /**
-     * Slot called when radio button modality change
-     */
-    void onClickedButtonModality(int value);
+private:
 
-    //=========================================================================================================
-    /**
-     * Slot called when radio button method change
-     */
-    void onClickedButtonMethod(int value);
+    QMutex                          m_qMutex;                                    /**< The threads mutex.*/
 
-    //=========================================================================================================
-    /**
-     * Slot called when checkbox enabled change
-     */
-    void onClickedCheckboxEnabled(bool value);
+    FIFFLIB::FiffInfo::SPtr                         m_pFiffInfo;                /**< Fiff measurement info.*/
 
-    //=========================================================================================================
-    /**
-     * Slot called when input reference matrix file change
-     */
-    void onChangeFile();
+//    QSharedPointer<LinearClassifierWidget>                     m_pYourWidget;              /**< The widget used to control this plugin by the user.*/
 
-    QString                     m_sSettingsPath;    /**< The settings path to store the GUI settings to. */
-    bool m_bEnabled;
-    int m_iModality;
-    int m_iMethod;
+    IOBUFFER::CircularBuffer<Eigen::MatrixXd>::SPtr m_pLinearClassifierBuffer;          /**< Holds incoming data.*/
 
-    Ui::RereferenceWidget*     ui;              /**< The UI class specified in the designer. */
+    int                                             m_iNInputChannels;
+    int                                             m_iNOutputChannels;
+    Eigen::MatrixXd                                 m_pLinearClassifierMatrix;
+
+    SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr      m_pLinearClassifierInput;      /**< The incoming data.*/
+    SCSHAREDLIB::PluginOutputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr     m_pLinearClassifierOutput;     /**< The outgoing data.*/
 
 signals:
     //=========================================================================================================
     /**
-     * Emitted whenever the settings changed and are ready to be retreived.
+     * Emitted when fiffInfo is available
      */
-    void changeEnabled(bool value);
-    void changeModality(int value);
-    void changeMethod(int value);
+    void fiffInfoAvailable();
 };
-}   //namespace
+} // NAMESPACE
 
-#endif // REREFERENCEWIDGET_H
+#endif // LINEARCLASSIFIER_H
