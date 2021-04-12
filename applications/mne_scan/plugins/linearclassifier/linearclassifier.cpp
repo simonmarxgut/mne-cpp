@@ -66,7 +66,6 @@ using namespace SCSHAREDLIB;
 using namespace SCMEASLIB;
 //using namespace DISPLIB;
 using namespace FIFFLIB;
-using namespace IOBUFFER;
 using namespace UTILSLIB;
 using namespace Eigen;
 
@@ -91,7 +90,7 @@ LinearClassifier::~LinearClassifier()
 
 //=============================================================================================================
 
-QSharedPointer<IPlugin> LinearClassifier::clone() const
+QSharedPointer<AbstractPlugin> LinearClassifier::clone() const
 {
     QSharedPointer<LinearClassifier> pLinearClassifierClone(new LinearClassifier);
     return pLinearClassifierClone;
@@ -112,7 +111,7 @@ void LinearClassifier::init()
     // Output - Uncomment this if you don't want to send processed data (in form of a matrix) to other plugins.
     // Also, this output stream will generate an online display in your plugin
     m_pLinearClassifierOutput = PluginOutputData<RealTimeMultiSampleArray>::create(this, "LinearClassifierOut", "LinearClassifier output data");
-    m_pLinearClassifierOutput->data()->setName(this->getName());
+    m_pLinearClassifierOutput->measurementData()->setName(this->getName());
     m_outputConnectors.append(m_pLinearClassifierOutput);
 
     //Delete Buffer - will be initailzed with first incoming data
@@ -144,7 +143,7 @@ bool LinearClassifier::stop()
     wait(500);
 
     // Clear all data in the buffer connected to displays and other plugins
-    m_pLinearClassifierOutput->data()->clear();
+    m_pLinearClassifierOutput->measurementData()->clear();
     m_pLinearClassifierBuffer->clear();
 
     m_bPluginControlWidgetsInit = false;
@@ -154,7 +153,7 @@ bool LinearClassifier::stop()
 
 //=============================================================================================================
 
-IPlugin::PluginType LinearClassifier::getType() const
+AbstractPlugin::PluginType LinearClassifier::getType() const
 {
     return _IAlgorithm;
 }
@@ -215,8 +214,8 @@ void LinearClassifier::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             m_pFiffInfo->ch_names = fakeChNames;
             m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
 
-            m_pLinearClassifierOutput->data()->initFromFiffInfo(m_pFiffInfo);
-            m_pLinearClassifierOutput->data()->setMultiArraySize(1);
+            m_pLinearClassifierOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
+            m_pLinearClassifierOutput->measurementData()->setMultiArraySize(1);
         }
 
         if(!m_bPluginControlWidgetsInit) {
@@ -285,7 +284,7 @@ void LinearClassifier::run()
             //Send the data to the connected plugins and the online display
             //Unocmment this if you also uncommented the m_pOutput in the constructor above
             if(!isInterruptionRequested()) {
-                m_pLinearClassifierOutput->data()->setValue(matData);
+                m_pLinearClassifierOutput->measurementData()->setValue(matData);
             }
         }
     }

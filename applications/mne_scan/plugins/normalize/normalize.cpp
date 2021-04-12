@@ -63,7 +63,7 @@ using namespace NORMALIZEPLUGIN;
 using namespace SCSHAREDLIB;
 using namespace SCMEASLIB;
 using namespace FIFFLIB;
-using namespace IOBUFFER;
+using namespace UTILSLIB;
 using namespace Eigen;
 
 //=============================================================================================================
@@ -94,7 +94,7 @@ Normalize::~Normalize()
 
 //=============================================================================================================
 
-QSharedPointer<IPlugin> Normalize::clone() const
+QSharedPointer<AbstractPlugin> Normalize::clone() const
 {
     QSharedPointer<Normalize> pNormalizeClone(new Normalize);
     return pNormalizeClone;
@@ -115,7 +115,7 @@ void Normalize::init()
     // Output - Uncomment this if you don't want to send processed data (in form of a matrix) to other plugins.
     // Also, this output stream will generate an online display in your plugin
     m_pNormalizeOutput = PluginOutputData<RealTimeMultiSampleArray>::create(this, "ReferenceOut", "Reference output data");
-    m_pNormalizeOutput->data()->setName(this->getName());
+    m_pNormalizeOutput->measurementData()->setName(this->getName());
     m_outputConnectors.append(m_pNormalizeOutput);
 
     //Delete Buffer - will be initailzed with first incoming data
@@ -147,7 +147,7 @@ bool Normalize::stop()
     wait(500);
 
     // Clear all data in the buffer connected to displays and other plugins
-    m_pNormalizeOutput->data()->clear();
+    m_pNormalizeOutput->measurementData()->clear();
     m_pNormalizeBuffer->clear();
 
     m_bPluginControlWidgetsInit = false;
@@ -157,7 +157,7 @@ bool Normalize::stop()
 
 //=============================================================================================================
 
-IPlugin::PluginType Normalize::getType() const
+AbstractPlugin::PluginType Normalize::getType() const
 {
     return _IAlgorithm;
 }
@@ -194,8 +194,8 @@ void Normalize::update(SCMEASLIB::Measurement::SPtr pMeasurement)
         if(!m_pFiffInfo) {
             m_pFiffInfo = pRTMSA->info();
 
-            m_pNormalizeOutput->data()->initFromFiffInfo(m_pFiffInfo);
-            m_pNormalizeOutput->data()->setMultiArraySize(1);
+            m_pNormalizeOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
+            m_pNormalizeOutput->measurementData()->setMultiArraySize(1);
 
             if(m_iNChannels == -1)
                 m_iNChannels = m_pFiffInfo->nchan;
@@ -305,7 +305,7 @@ void Normalize::run()
             //Send the data to the connected plugins and the online display
             //Unocmment this if you also uncommented the m_pOutput in the constructor above
             if(!isInterruptionRequested()) {
-                m_pNormalizeOutput->data()->setValue(matData);
+                m_pNormalizeOutput->measurementData()->setValue(matData);
             }
         }
     }

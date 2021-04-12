@@ -43,7 +43,7 @@
 
 #include "linearclassifier_global.h"
 
-#include <scShared/Interfaces/IAlgorithm.h>
+#include <scShared/Plugins/abstractalgorithm.h>
 #include <utils/generics/circularbuffer.h>
 #include <scMeas/realtimemultisamplearray.h>
 
@@ -85,12 +85,12 @@ namespace LINEARCLASSIFIERPLUGIN
  * @brief The LinearClassifier class provides a dummy algorithm structure.
  */
 
-class LINEARCLASSIFIERSHARED_EXPORT LinearClassifier : public SCSHAREDLIB::IAlgorithm
+class LINEARCLASSIFIERSHARED_EXPORT LinearClassifier : public SCSHAREDLIB::AbstractAlgorithm
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "scsharedlib/1.0" FILE "linearclassifier.json") //New Qt5 Plugin system replaces Q_EXPORT_PLUGIN2 macro
     // Use the Q_INTERFACES() macro to tell Qt's meta-object system about the interfaces
-    Q_INTERFACES(SCSHAREDLIB::IAlgorithm)
+    Q_INTERFACES(SCSHAREDLIB::AbstractAlgorithm)
 
 public:
     //=========================================================================================================
@@ -109,12 +109,12 @@ public:
     /**
      * IAlgorithm functions
      */
-    virtual QSharedPointer<SCSHAREDLIB::IPlugin> clone() const;
+    virtual QSharedPointer<SCSHAREDLIB::AbstractPlugin> clone() const;
     virtual void init();
     virtual void unload();
     virtual bool start();
     virtual bool stop();
-    virtual SCSHAREDLIB::IPlugin::PluginType getType() const;
+    virtual SCSHAREDLIB::AbstractPlugin::PluginType getType() const;
     virtual QString getName() const;
     virtual QWidget* setupWidget();
 
@@ -171,7 +171,7 @@ private:
 
 //    QSharedPointer<LinearClassifierWidget>                     m_pYourWidget;              /**< The widget used to control this plugin by the user.*/
 
-    IOBUFFER::CircularBuffer<Eigen::MatrixXd>::SPtr m_pLinearClassifierBuffer;          /**< Holds incoming data.*/
+    UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr m_pLinearClassifierBuffer;          /**< Holds incoming data.*/
 
     int                                             m_iNInputChannels;
     int                                             m_iNOutputChannels;

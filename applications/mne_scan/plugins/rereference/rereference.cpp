@@ -69,7 +69,6 @@ using namespace SCSHAREDLIB;
 using namespace SCMEASLIB;
 using namespace DISPLIB;
 using namespace FIFFLIB;
-using namespace IOBUFFER;
 using namespace UTILSLIB;
 using namespace Eigen;
 
@@ -99,7 +98,7 @@ Rereference::~Rereference()
 
 //=============================================================================================================
 
-QSharedPointer<IPlugin> Rereference::clone() const
+QSharedPointer<AbstractPlugin> Rereference::clone() const
 {
     QSharedPointer<Rereference> pRereferenceClone(new Rereference);
     return pRereferenceClone;
@@ -120,7 +119,7 @@ void Rereference::init()
     // Output - Uncomment this if you don't want to send processed data (in form of a matrix) to other plugins.
     // Also, this output stream will generate an online display in your plugin
     m_pRereferenceOutput = PluginOutputData<RealTimeMultiSampleArray>::create(this, "ReferenceOut", "Reference output data");
-    m_pRereferenceOutput->data()->setName(this->getName());
+    m_pRereferenceOutput->measurementData()->setName(this->getName());
     m_outputConnectors.append(m_pRereferenceOutput);
 
     //Delete Buffer - will be initailzed with first incoming data
@@ -160,7 +159,7 @@ bool Rereference::stop()
     wait(500);
 
     // Clear all data in the buffer connected to displays and other plugins
-    m_pRereferenceOutput->data()->clear();
+    m_pRereferenceOutput->measurementData()->clear();
     m_pRereferenceBuffer->clear();
 
     m_bPluginControlWidgetsInit = false;
@@ -170,7 +169,7 @@ bool Rereference::stop()
 
 //=============================================================================================================
 
-IPlugin::PluginType Rereference::getType() const
+AbstractPlugin::PluginType Rereference::getType() const
 {
     return _IAlgorithm;
 }
@@ -207,8 +206,8 @@ void Rereference::update(SCMEASLIB::Measurement::SPtr pMeasurement)
         if(!m_pFiffInfo) {
             m_pFiffInfo = pRTMSA->info();
 
-            m_pRereferenceOutput->data()->initFromFiffInfo(m_pFiffInfo);
-            m_pRereferenceOutput->data()->setMultiArraySize(1);
+            m_pRereferenceOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
+            m_pRereferenceOutput->measurementData()->setMultiArraySize(1);
 
             m_pMEGindex = m_pFiffInfo->pick_types(true,false,false);
             m_pEEGindex = m_pFiffInfo->pick_types(false,true,false);
@@ -312,7 +311,7 @@ void Rereference::run()
             //Send the data to the connected plugins and the online display
             //Unocmment this if you also uncommented the m_pOutput in the constructor above
             if(!isInterruptionRequested()) {
-                m_pRereferenceOutput->data()->setValue(matData);
+                m_pRereferenceOutput->measurementData()->setValue(matData);
             }
         }
     }

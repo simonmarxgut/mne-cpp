@@ -60,7 +60,6 @@
 using namespace BANDPOWERPLUGIN;
 using namespace SCMEASLIB;
 using namespace UTILSLIB;
-using namespace IOBUFFER;
 using namespace DISPLIB;
 //using namespace RTPROCESSINGLIB;
 using namespace FIFFLIB;
@@ -102,7 +101,7 @@ BandPower::~BandPower()
 
 //=============================================================================================================
 
-QSharedPointer<IPlugin> BandPower::clone() const
+QSharedPointer<AbstractPlugin> BandPower::clone() const
 {
     QSharedPointer<BandPower> pBandPowerClone(new BandPower);
     return pBandPowerClone;
@@ -122,8 +121,8 @@ void BandPower::init()
     // Output - Uncomment this if you don't want to send processed data (in form of a matrix) to other plugins.
     // Also, this output stream will generate an online display in your plugin
     m_pBandPowerOutput = PluginOutputData<RealTimeMultiSampleArray>::create(this, "BandPowerOut", "BandPower output data");
-    m_pBandPowerOutput->data()->setName(this->getName());//Provide name to auto store widget settings
-    m_pBandPowerOutput->data()->setMultiArraySize(1);
+    m_pBandPowerOutput->measurementData()->setName(this->getName());//Provide name to auto store widget settings
+    m_pBandPowerOutput->measurementData()->setMultiArraySize(1);
 
     m_outputConnectors.append(m_pBandPowerOutput);
 
@@ -164,7 +163,7 @@ bool BandPower::stop()
     requestInterruption();
     wait(500);
 
-    m_pBandPowerOutput->data()->clear();
+    m_pBandPowerOutput->measurementData()->clear();
     m_pBandPowerBuffer->clear();
 
     return true;
@@ -172,7 +171,7 @@ bool BandPower::stop()
 
 //=============================================================================================================
 
-IPlugin::PluginType BandPower::getType() const
+AbstractPlugin::PluginType BandPower::getType() const
 {
     return _IAlgorithm;
 }
@@ -368,9 +367,9 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
             m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/m_iNTimeSteps;
 
-            m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
+            m_pBandPowerOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
 
-            m_pBandPowerOutput->data()->setVisibility(true);
+            m_pBandPowerOutput->measurementData()->setVisibility(true);
         }
 
         // Check if data is present
@@ -593,7 +592,7 @@ void BandPower::run()
 
         //Send the data to the connected plugins and the online display
 
-        m_pBandPowerOutput->data()->setValue(bandpower);
+        m_pBandPowerOutput->measurementData()->setValue(bandpower);
 
         qDebug() << "Power:" << bandpower(0,0);
 

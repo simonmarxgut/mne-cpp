@@ -127,13 +127,13 @@ void ChannelSelectionView::initListWidgets()
     connect(m_pUi->m_listWidget_selectionGroups, &QListWidget::currentItemChanged,
                 this, &ChannelSelectionView::updateSelectionGroupsList);
     //Make sure user selected channels are highlighted when changing selection groups
-    connect(ui->m_listWidget_selectionGroups, &QListWidget::currentItemChanged,
-                ui->m_listWidget_userDefined,
+    connect(m_pUi->m_listWidget_selectionGroups, &QListWidget::currentItemChanged,
+                m_pUi->m_listWidget_userDefined,
             [this]() {
-        if(ui->m_listWidget_userDefined->count() > 0) {
+        if(m_pUi->m_listWidget_userDefined->count() > 0) {
             QStringList userDefinedChannelList;
-            for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
-                QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+            for(int i = 0; i < m_pUi->m_listWidget_userDefined->count(); i++) {
+                QListWidgetItem* item = m_pUi->m_listWidget_userDefined->item(i);
                 userDefinedChannelList << item->text();
             }
             bool oldState = m_pSelectionScene->blockSignals(true);
@@ -143,9 +143,9 @@ void ChannelSelectionView::initListWidgets()
         });
 
     //Highlight channel when selected in list
-    connect(ui->m_listWidget_visibleChannels, &QListWidget::itemClicked,ui->m_listWidget_userDefined,
+    connect(m_pUi->m_listWidget_visibleChannels, &QListWidget::itemClicked,m_pUi->m_listWidget_userDefined,
             [this](const QListWidgetItem* item) {
-        if(ui->m_listWidget_userDefined->count() == 0) {
+        if(m_pUi->m_listWidget_userDefined->count() == 0) {
             selectChannelsMuted(item->text().split(';'));
         }
     });
@@ -156,12 +156,12 @@ void ChannelSelectionView::initListWidgets()
                 this, &ChannelSelectionView::updateDataView);
 
     //Remove items from list with double click
-    connect(ui->m_listWidget_userDefined, &QListWidget::itemDoubleClicked,ui->m_listWidget_userDefined,
+    connect(m_pUi->m_listWidget_userDefined, &QListWidget::itemDoubleClicked,m_pUi->m_listWidget_userDefined,
             [this](const QListWidgetItem* item) {
-        ui->m_listWidget_userDefined->takeItem(ui->m_listWidget_userDefined->row(item));
+        m_pUi->m_listWidget_userDefined->takeItem(m_pUi->m_listWidget_userDefined->row(item));
         QStringList userDefinedChannelList;
-        for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
-            QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+        for(int i = 0; i < m_pUi->m_listWidget_userDefined->count(); i++) {
+            QListWidgetItem* item = m_pUi->m_listWidget_userDefined->item(i);
             userDefinedChannelList << item->text();
         }
         selectChannelsMuted(userDefinedChannelList);
@@ -169,11 +169,11 @@ void ChannelSelectionView::initListWidgets()
     });
 
     //Highlight user selected channels
-    connect(ui->m_listWidget_userDefined, &QListWidget::itemChanged,
+    connect(m_pUi->m_listWidget_userDefined, &QListWidget::itemChanged,
             this, [this]() {
         QStringList userDefinedChannelList;
-        for(int i = 0; i < ui->m_listWidget_userDefined->count(); i++) {
-            QListWidgetItem* item = ui->m_listWidget_userDefined->item(i);
+        for(int i = 0; i < m_pUi->m_listWidget_userDefined->count(); i++) {
+            QListWidgetItem* item = m_pUi->m_listWidget_userDefined->item(i);
             userDefinedChannelList << item->text();
         }
         selectChannelsMuted(userDefinedChannelList);
@@ -483,7 +483,7 @@ void ChannelSelectionView::setUserSelection(QStringList channelList)
         QModelIndex digIndex = m_pChannelInfoModel->index(channelIndex,3);
         mappedChannelList.append(m_pChannelInfoModel->data(digIndex,ChannelInfoModelRoles::GetMappedLayoutChName).toString());
     }
-    ui->m_listWidget_userDefined->addItems(mappedChannelList);
+    m_pUi->m_listWidget_userDefined->addItems(mappedChannelList);
 
     selectChannels(mappedChannelList);
 }
@@ -492,8 +492,8 @@ void ChannelSelectionView::setUserSelection(QStringList channelList)
 
 void ChannelSelectionView::resetUserSelection()
 {
-    if(ui->m_listWidget_userDefined->count()>0)
-        ui->m_listWidget_userDefined->clear();
+    if(m_pUi->m_listWidget_userDefined->count()>0)
+        m_pUi->m_listWidget_userDefined->clear();
 
     QList<QGraphicsItem *> allSceneItems = m_pSelectionScene->items();
 

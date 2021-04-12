@@ -43,7 +43,7 @@
 
 #include "rereference_global.h"
 
-#include <scShared/Interfaces/IAlgorithm.h>
+#include <scShared/Plugins/abstractalgorithm.h>
 #include <utils/generics/circularbuffer.h>
 #include <scMeas/realtimemultisamplearray.h>
 
@@ -90,12 +90,12 @@ namespace REREFERENCEPLUGIN
  * @brief The Rereference class provides a dummy algorithm structure.
  */
 
-class REREFERENCESHARED_EXPORT Rereference : public SCSHAREDLIB::IAlgorithm
+class REREFERENCESHARED_EXPORT Rereference : public SCSHAREDLIB::AbstractAlgorithm
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID "scsharedlib/1.0" FILE "rereference.json") //New Qt5 Plugin system replaces Q_EXPORT_PLUGIN2 macro
     // Use the Q_INTERFACES() macro to tell Qt's meta-object system about the interfaces
-    Q_INTERFACES(SCSHAREDLIB::IAlgorithm)
+    Q_INTERFACES(SCSHAREDLIB::AbstractAlgorithm)
 
 public:
     //=========================================================================================================
@@ -114,12 +114,12 @@ public:
     /**
      * IAlgorithm functions
      */
-    virtual QSharedPointer<SCSHAREDLIB::IPlugin> clone() const;
+    virtual QSharedPointer<SCSHAREDLIB::AbstractPlugin> clone() const;
     virtual void init();
     virtual void unload();
     virtual bool start();
     virtual bool stop();
-    virtual SCSHAREDLIB::IPlugin::PluginType getType() const;
+    virtual SCSHAREDLIB::AbstractPlugin::PluginType getType() const;
     virtual QString getName() const;
     virtual QWidget* setupWidget();
 
@@ -218,7 +218,7 @@ private:
     QSharedPointer<DISPLIB::ChannelSelectionView>   m_pChannelSelectionView;        /**< ChannelSelectionView. */
     QList<int>                                      m_pSelectedChannels;
 
-    IOBUFFER::CircularBuffer<Eigen::MatrixXd>::SPtr m_pRereferenceBuffer;          /**< Holds incoming data.*/
+    UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr m_pRereferenceBuffer;          /**< Holds incoming data.*/
 
     SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr      m_pRereferenceInput;      /**< The incoming data.*/
     SCSHAREDLIB::PluginOutputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr     m_pRereferenceOutput;     /**< The outgoing data.*/

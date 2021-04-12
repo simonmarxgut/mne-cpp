@@ -42,10 +42,7 @@
 
 #include <fiff/fiff.h>
 
-#include <utils/filterTools/filterdata.h>
 #include <utils/generics/applicationlogger.h>
-
-#include <rtprocessing/rtfilter.h>
 
 #include <utils/spectral.h>
 
@@ -63,7 +60,6 @@
 
 using namespace FIFFLIB;
 using namespace UTILSLIB;
-using namespace RTPROCESSINGLIB;
 using namespace Eigen;
 
 //=============================================================================================================

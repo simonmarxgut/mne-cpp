@@ -58,7 +58,6 @@ using namespace SPECTRUMPLUGIN;
 //using namespace BANDPOWERPLUGIN;
 using namespace SCMEASLIB;
 using namespace UTILSLIB;
-using namespace IOBUFFER;
 using namespace DISPLIB;
 //using namespace RTPROCESSINGLIB;
 using namespace FIFFLIB;
@@ -98,7 +97,7 @@ Spectrum::~Spectrum()
 
 //=============================================================================================================
 
-QSharedPointer<IPlugin> Spectrum::clone() const
+QSharedPointer<AbstractPlugin> Spectrum::clone() const
 {
     QSharedPointer<Spectrum> pSpectrumClone(new Spectrum);
     return pSpectrumClone;
@@ -166,7 +165,7 @@ bool Spectrum::stop()
 
 //=============================================================================================================
 
-IPlugin::PluginType Spectrum::getType() const
+AbstractPlugin::PluginType Spectrum::getType() const
 {
     return _IAlgorithm;
 }
@@ -349,10 +348,10 @@ void Spectrum::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/pRTMSA->getMultiSampleArray().first().cols();
 
             //Init output - Uncomment this if you also uncommented the m_pDummyOutput in the constructor above
-            m_pSpectrumOutput->data()->initFromFiffInfo(m_pFiffInfo);
+            m_pSpectrumOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
             // m_pSpectrumOutput->data()->setMultiArraySize(1);
-            m_pSpectrumOutput->data()->setVisibility(true);
-            m_pSpectrumOutput->data()->setName(this->getName());
+            m_pSpectrumOutput->measurementData()->setVisibility(true);
+            m_pSpectrumOutput->measurementData()->setName(this->getName());
         }
 
         // Check if data is present
@@ -571,7 +570,7 @@ void Spectrum::run()
         m_qMutex.unlock();
 
         //Send the data to the connected plugins and the online display
-        m_pSpectrumOutput->data()->setValue(matOut);
+        m_pSpectrumOutput->measurementData()->setValue(matOut);
 
         //move matrix entries one block to the left
         if(t_NSampleMat.cols()/m_iNTimeSteps > 1)
