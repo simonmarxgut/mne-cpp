@@ -516,6 +516,19 @@ Eigen::VectorXd Spectral::psdFromARSpectra(const QPair<Eigen::VectorXd, double> 
 
     SpectraBinned.array() = (2.0 * dNum) / (dDen.real().array().pow(2) + dDen.imag().array().pow(2)); // Multiply by 2 to account for symmetry of spectrum
 
+/*    if(SpectraBinned.array().isNaN().any())
+        for(int i=0; i < SpectraBinned.rows(); i++)
+            for(int j=0; j< SpectraBinned.cols(); j++)
+                if(std::isnan(SpectraBinned(i,j))){
+                    if(std::abs(dNum) < std::numeric_limits<double>::epsilon()){
+                        SpectraBinned(i,j) = 0;
+                        qDebug() << "[Spectral::psdFromARSpectra] Corrected NaN to 0";
+                    }
+                    else
+                        qDebug() << "[Spectral::psdFromARSpectra] Value is NaN. Value of dNum is" << dNum;
+                }*/
+
+
     Eigen::VectorXd vecSpectraOut = SpectraBinned.rowwise().mean() / dSampFreq; // Take mean over evaluations in bin
 
     return vecSpectraOut;

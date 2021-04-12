@@ -366,7 +366,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
             m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
 
-            m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/pRTMSA->getMultiSampleArray().first().cols();
+            m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/m_iNTimeSteps;
 
             m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
 

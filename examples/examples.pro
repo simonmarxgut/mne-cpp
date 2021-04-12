@@ -48,6 +48,7 @@ TEMPLATE = subdirs
 
 SUBDIRS += \
     ex_averaging \
+    ex_bandpower_fif \
     ex_cancel_noise \
     ex_compute_forward \
     ex_coreg \
