@@ -77,18 +77,6 @@ using namespace std;
  * @param [in] argv (argument vector) is an array of pointers to arrays of character objects. The array objects are null-terminated strings, representing the arguments that were entered on the command line when the program was started.
  * @return the value that was set to exit() (which is 0 if exit() is called via quit()).
  */
-void getstringfromuserinput (QString &qs, const QString request){
-    qInfo() << request;
-    QTextStream qtin(stdin);
-    qs = qtin.readLine();
-    return;
-}
-
-void ifinputisempty (QString &qs, const QString val){
-    if (qs.isEmpty()){
-        qs = val;
-    }
-}
 
 int main(int argc, char *argv[])
 {
@@ -100,39 +88,33 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription("Read Write Raw Example");
     parser.addHelpOption();
 
-    QString infilename;
-    QString outfilename;
 
-    if (argc > 1){
-        infilename = argv[1];
-        getstringfromuserinput(outfilename, "Outputfilename: ");
-    }
-
-    else if (argc > 2){
-        infilename = argv[1];
-        outfilename = argv[2];
-    }
-
-    else {
-        getstringfromuserinput(infilename, "Inputfilename: ");
-        getstringfromuserinput(outfilename, "Outputfilename: ");
-
-        if (infilename.isEmpty()){
-            infilename = "sample_audvis_raw.fif";
-        }
-
-        if (outfilename.isEmpty()){
-            outfilename = "sample_audvis_filt_raw.fif";
-        }
-    }
-
-
-
-    QCommandLineOption inputOption("fileIn", "The input file <in>.", "in", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/" + infilename);
-    QCommandLineOption outputOption("fileOut", "The output file <out>.", "out", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/" + outfilename);
+    QCommandLineOption inputOption( QStringList() << "i" << "input", "The input file <in>.", "in", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_raw.fif");
+    QCommandLineOption outputOption(QStringList() << "o" << "output", "The output file <out>.", "out", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_filt_raw.fif");
+    QCommandLineOption starttimeOption(QStringList() << "f" << "from", "The starttime <from>.", "from", 0);
+    QCommandLineOption endtimeOption(QStringList() << "t" << "to", "The endtime <to>.", "to", 0);
+    QCommandLineOption BandpowerbinsOption(QStringList() << "b" << "Bandpowerbins", "Bandpowerbins <Bandpowerbins>.", "Bandpowerbins", "11");
+    QCommandLineOption UpdateintervalllengthOption(QStringList() << "u" << "Updateintervalllength", "UpdateIntervallLength <Updateintervalllength>.", "Updateintervalllength", "0.05");
+    QCommandLineOption IntervalllenghtfactorOption(QStringList() << "l" << "Intervalllengthfactor", "IntervallLengthFactor <Intervalllengthfactor>.", "Intervalllengthfactor", "8");
+    QCommandLineOption OrderarOption(QStringList() << "n" << "Orderar", "OrderAR <Orderar>.", "Orderar", "40");
+    QCommandLineOption EvalsarOption(QStringList() << "e" << "Evalsar", "EvalsAR <Evalsar>.", "Evalsar", "100");
+    QCommandLineOption DetrendmethodOption(QStringList() << "d" << "Detrendmethod", "Detrendmethod <Detrendmethod>.", "Detrendmethod", "2");
+    QCommandLineOption FreqminOption(QStringList() << "x" << "Freqmin", "FreqMin <Freqmin>.", "Freqmin", "8.0");
+    QCommandLineOption FreqmaxOption(QStringList() << "y" << "Freqmax", "FreqMax <Freqmax>.", "Freqmax", "30.0");
 
     parser.addOption(inputOption);
     parser.addOption(outputOption);
+    parser.addOption(starttimeOption);
+    parser.addOption(endtimeOption);
+    parser.addOption(BandpowerbinsOption);
+    parser.addOption(UpdateintervalllengthOption);
+    parser.addOption(IntervalllenghtfactorOption);
+    parser.addOption(OrderarOption);
+    parser.addOption(EvalsarOption);
+    parser.addOption(DetrendmethodOption);
+    parser.addOption(FreqminOption);
+    parser.addOption(FreqmaxOption);
+
 
     parser.process(a);
 
@@ -140,48 +122,21 @@ int main(int argc, char *argv[])
     QFile t_fileIn(parser.value(inputOption));
     QFile t_fileOut(parser.value(outputOption));
 
-//    QFile t_fileIn("/Users/vorwerk/git/MNE-sample-data/EEG_data_001_raw_melon.fif");
-//    QFile t_fileOut("/Users/vorwerk/git/MNE-sample-data/EEG_data_melon_bandpower_test.fif");
 
     FiffRawData raw(t_fileIn);
-
-    // Set up the reading parameters to read the whole file at once
-    fiff_int_t from;
-    QString Starttime;
-    qInfo() << "The file starts with " << raw.first_samp << " and ends with " << raw.last_samp << " seconds.";
-    getstringfromuserinput(Starttime, "Starttime in Seconds (int): ");
-    if (Starttime.isEmpty()){
+    QString starttime = parser.value(starttimeOption);
+    int from = starttime.split(" ")[0].toInt();
+    if (from == 0){
         from = raw.first_samp;
-    }
-    else {
-        int iStarttime = Starttime.split(" ")[0].toInt();
-        from = iStarttime;
     }
     qDebug() << "Starttime" << from;
 
-    fiff_int_t to;
-    QString Endtime;
-    getstringfromuserinput(Endtime, "Endtime in Seconds (int): ");
-    if (Endtime.isEmpty()){
+    QString endtime = parser.value(endtimeOption);
+    int to = endtime.split(" ")[0].toInt();
+    if (to == 0){
         to = raw.last_samp;
     }
-    else {
-        int iEndtime = Endtime.split(" ")[0].toInt();
-        to = iEndtime;
-        if (iEndtime > raw.last_samp){
-            to = raw.last_samp;
-        }
-    }
-    qDebug()<< "Endtime" << to;
-
-    if (from > to){
-        qDebug() << "impossible Timerange - the first and last sample of the file is used";
-        from = raw.first_samp;
-        to = raw.last_samp;
-    }
-
-    //fiff_int_t from = raw.first_samp;
-    //fiff_int_t to = raw.last_samp;
+    qDebug() << "endtime" << to;
 
     // Read the data
     MatrixXd data;
@@ -279,21 +234,15 @@ int main(int argc, char *argv[])
     //double dUpdateIntervallLength = 0.05; // in [s]
     //int iIntervallLengthFactor = 8; // multiples of update intervall
 
-    QString BandPowerBins;
-    getstringfromuserinput(BandPowerBins, "Bandpowerbins (int): ");
-    ifinputisempty (BandPowerBins, "11");
+    QString BandPowerBins = parser.value(BandpowerbinsOption);
     int iBandPowerBins = BandPowerBins.split(" ")[0].toInt();
     qDebug() << "BandPowerBins" << iBandPowerBins;
 
-    QString UpdateIntervallLength;
-    getstringfromuserinput(UpdateIntervallLength, "UpdateIntervallLength (double): ");
-    ifinputisempty (BandPowerBins, "0.05");
+    QString UpdateIntervallLength = parser.value(UpdateintervalllengthOption);
     double dUpdateIntervallLength = UpdateIntervallLength.split(" ")[0].toDouble();
     qDebug() << "UpdateIntervallLength" << dUpdateIntervallLength;
 
-    QString IntervallLengthFactor;
-    getstringfromuserinput(UpdateIntervallLength, "IntervallLengthFactor (int): ");
-    ifinputisempty (IntervallLengthFactor, "8");
+    QString IntervallLengthFactor = parser.value(IntervalllenghtfactorOption);
     int iIntervallLengthFactor = IntervallLengthFactor.split(" ")[0].toInt();
     qDebug() << "IntervallLengthFactor" << iIntervallLengthFactor;
 
@@ -304,33 +253,23 @@ int main(int argc, char *argv[])
 
     qDebug() << "sFreq " << sFreq << " dFreqOut " << dFreqOut << " iUpdateInvervallLength " << iUpdateIntervallLength << " iIntervallLength " << iIntervallLength << "iBandPowerChannels " << iBandPowerChannels;
 
-    QString OrderAR;
-    getstringfromuserinput(OrderAR, "OrderAR (int): ");
-    ifinputisempty (OrderAR, "40");
+    QString OrderAR = parser.value(OrderarOption);
     int iOrderAR = OrderAR.split(" ")[0].toInt();
     qDebug() << "OrderAR" << iOrderAR;
 
-    QString EvalsAR;
-    getstringfromuserinput(EvalsAR, "EvalsAR (int): ");
-    ifinputisempty (EvalsAR, "100");
+    QString EvalsAR = parser.value(EvalsarOption);
     int iEvalsAR = EvalsAR.split(" ")[0].toInt();
     qDebug() << "EvalsAR" << iEvalsAR;
 
-    QString DetrendMethod;
-    getstringfromuserinput(DetrendMethod, "DetrendMethod (int): ");
-    ifinputisempty (DetrendMethod, "2");
+    QString DetrendMethod = parser.value(DetrendmethodOption);
     int iDetrendMethod = DetrendMethod.split(" ")[0].toInt();
     qDebug() << "DetrendMethod" << iDetrendMethod;
 
-    QString FreqMin;
-    getstringfromuserinput(FreqMin, "FreqMin (double): ");
-    ifinputisempty (FreqMin, "8.0");
+    QString FreqMin = parser.value(FreqminOption);
     double dFreqMin = FreqMin.split(" ")[0].toDouble();
     qDebug() << "FreqMin" << dFreqMin;
 
-    QString FreqMax;
-    getstringfromuserinput(FreqMax, "FreqMax (double): ");
-    ifinputisempty (FreqMax, "30.0");
+    QString FreqMax = parser.value(FreqmaxOption);
     double dFreqMax = FreqMax.split(" ")[0].toDouble();
     qDebug() << "FreqMax" << dFreqMax;
 
