@@ -89,18 +89,19 @@ int main(int argc, char *argv[])
     parser.addHelpOption();
 
 
-    QCommandLineOption inputOption( QStringList() << "i" << "input", "The input file <in>.", "in", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_raw.fif");
-    QCommandLineOption outputOption(QStringList() << "o" << "output", "The output file <out>.", "out", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_filt_raw.fif");
-    QCommandLineOption starttimeOption(QStringList() << "f" << "from", "The starttime <from>.", "from", 0);
-    QCommandLineOption endtimeOption(QStringList() << "t" << "to", "The endtime <to>.", "to", 0);
-    QCommandLineOption BandpowerbinsOption(QStringList() << "b" << "Bandpowerbins", "Bandpowerbins <Bandpowerbins>.", "Bandpowerbins", "11");
-    QCommandLineOption UpdateintervalllengthOption(QStringList() << "u" << "Updateintervalllength", "UpdateIntervallLength <Updateintervalllength>.", "Updateintervalllength", "0.05");
-    QCommandLineOption IntervalllenghtfactorOption(QStringList() << "l" << "Intervalllengthfactor", "IntervallLengthFactor <Intervalllengthfactor>.", "Intervalllengthfactor", "8");
-    QCommandLineOption OrderarOption(QStringList() << "n" << "Orderar", "OrderAR <Orderar>.", "Orderar", "40");
-    QCommandLineOption EvalsarOption(QStringList() << "e" << "Evalsar", "EvalsAR <Evalsar>.", "Evalsar", "100");
-    QCommandLineOption DetrendmethodOption(QStringList() << "d" << "Detrendmethod", "Detrendmethod <Detrendmethod>.", "Detrendmethod", "2");
-    QCommandLineOption FreqminOption(QStringList() << "x" << "Freqmin", "FreqMin <Freqmin>.", "Freqmin", "8.0");
-    QCommandLineOption FreqmaxOption(QStringList() << "y" << "Freqmax", "FreqMax <Freqmax>.", "Freqmax", "30.0");
+    QCommandLineOption inputOption( QStringList() << "inFile" << "input", "The input file <in>.", "in", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_raw.fif");
+    QCommandLineOption outputOption(QStringList() << "outFile" << "output", "The output file <out>.", "out", QCoreApplication::applicationDirPath() + "/MNE-sample-data/MEG/sample/sample_audvis_filt_raw.fif");
+    QCommandLineOption starttimeOption(QStringList() << "from" << "from", "The starttime <from>.", "from", 0);
+    QCommandLineOption endtimeOption(QStringList() << "to" << "to", "The endtime <to>.", "to", 0);
+    QCommandLineOption BandpowerbinsOption(QStringList() << "bandpowerbins" << "Bandpowerbins", "Bandpowerbins <Bandpowerbins>.", "Bandpowerbins", "1");
+    QCommandLineOption UpdateintervalllengthOption(QStringList() << "updateint" << "Updateintervalllength", "UpdateIntervallLength <Updateintervalllength>.", "Updateintervalllength", "0.05");
+    QCommandLineOption IntervalllenghtfactorOption(QStringList() << "intfac" << "Intervalllengthfactor", "IntervallLengthFactor <Intervalllengthfactor>.", "Intervalllengthfactor", "8");
+    QCommandLineOption OrderarOption(QStringList() << "order" << "Orderar", "OrderAR <Orderar>.", "Orderar", "40");
+    QCommandLineOption EvalsarOption(QStringList() << "evals" << "Evalsar", "EvalsAR <Evalsar>.", "Evalsar", "100");
+    QCommandLineOption DetrendmethodOption(QStringList() << "detrendm" << "Detrendmethod", "Detrendmethod <Detrendmethod>.", "Detrendmethod", "2");
+    QCommandLineOption FreqminOption(QStringList() << "freqmin" << "Freqmin", "FreqMin <Freqmin>.", "Freqmin", "8.0");
+    QCommandLineOption FreqmaxOption(QStringList() << "freqmax" << "Freqmax", "FreqMax <Freqmax>.", "Freqmax", "30.0");
+    QCommandLineOption SpectrummethodOption(QStringList() << "spectrm" << "Spectrummethod", "Spectrummethod <Spectrummethod>.", "spectrm", "ar");
 
     parser.addOption(inputOption);
     parser.addOption(outputOption);
@@ -114,6 +115,7 @@ int main(int argc, char *argv[])
     parser.addOption(DetrendmethodOption);
     parser.addOption(FreqminOption);
     parser.addOption(FreqmaxOption);
+    parser.addOption(SpectrummethodOption);
 
 
     parser.process(a);
@@ -314,6 +316,9 @@ int main(int argc, char *argv[])
     for(int i=0; i<iUsedChannels.rows(); ++i)
         datain.row(i) -= colavg;
 
+//  int iNSamples = data.rows();            //Eigen:: problem
+    int iNSamples = iIntervallLength;       //Debug Selected binw width is smaller than FFT resolution
+
 // Apply bandpower filter
 
     MatrixXd databp(iBandPowerChannels*iBandPowerBins,int(std::floor((datain.cols() - iIntervallLength)/iUpdateIntervallLength)) + 1);
@@ -321,26 +326,60 @@ int main(int argc, char *argv[])
 
     qDebug() << "iDetrendMethod" << iDetrendMethod;
 
-    for(int j=0; j<databp.cols(); j++)
-    {
-        MatrixXd datain_block = datain.block(0,j*iUpdateIntervallLength,datain.rows(),iIntervallLength);
+    VectorXd FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,sFreq);
+    bool specfft = false;
+    for(int j=0; j<databp.cols(); j++){
 
+        QVector<VectorXd> matSpectrum;
+        MatrixXd datain_block = datain.block(0,j*iUpdateIntervallLength,datain.rows(),iIntervallLength);
         MatrixXd datain_noav = Spectral::detrendData(datain_block,iDetrendMethod);
 
-        MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(dFreqMin/sFreq,dFreqMax/sFreq, iBandPowerBins, iEvalsAR, true);
-        QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(datain_noav,iOrderAR,true);
-        QVector<VectorXd> matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,sFreq,true);
+        if (parser.value(SpectrummethodOption) == "fft"){
+            specfft = true;
+            QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
+            MatrixXd matTaps = tapers.first;
+            VectorXd vecTapWeights = tapers.second;
+            // Compute Spectrum
+            QVector<MatrixXcd> matTaperedSpectrum;
+            matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(datain_noav, matTaps, iNSamples, true);
 
-        //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
-        //for (int i=0; i < matSpectrum.length(); ++i)
-        //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
-        if(iBandPowerChannels < matSpectrum.length())
-            qDebug() << "More channels selected than pre-defined! Only the first " << iBandPowerChannels << " are displayed!";
-        for(int i=0; i<std::min(iBandPowerChannels,matSpectrum.length()); ++i){
-            databp.block(i*iBandPowerBins,j,iBandPowerBins,1) = matSpectrum.at(i);
+            matSpectrum = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNSamples, sFreq, false);
+
+            // Select frequencies that fall within the band
+            if(iBandPowerChannels < matSpectrum.length())
+                qDebug() << "[BandPower::run] More channels selected than pre-defined! Only the first " << iBandPowerChannels << " are displayed!";
+
+            double binwidth = (dFreqMax - dFreqMin)/static_cast<double>(iBandPowerBins);
+
+            if (binwidth < (FFTFreqs[1] - FFTFreqs[0]))
+                qDebug() << "[BandPower::run] Selected bin width is smaller than FFT resolution";
+
+            for(int i=0; i<std::min(iBandPowerChannels,matSpectrum.length()); ++i)
+                for (int j=0; j<iBandPowerBins; ++j)
+                {
+                    databp(i*iBandPowerBins + j,1) = Spectral::bandpowerFromSpectrumEntriesOffset(FFTFreqs, matSpectrum.at(i), dFreqMin + j*binwidth, dFreqMin + (j+1)*binwidth);
+                }
+            matSpectrum.clear();
         }
-        matSpectrum.clear();
+
+        else {
+            MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(dFreqMin/sFreq,dFreqMax/sFreq, iBandPowerBins, iEvalsAR, true);
+            QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(datain_noav,iOrderAR,true);
+            matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,sFreq,true);
+
+            //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
+            //for (int i=0; i < matSpectrum.length(); ++i)
+            //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
+            if(iBandPowerChannels < matSpectrum.length())
+                qDebug() << "More channels selected than pre-defined! Only the first " << iBandPowerChannels << " are displayed!";
+            for(int i=0; i<std::min(iBandPowerChannels,matSpectrum.length()); ++i){
+                databp.block(i*iBandPowerBins,j,iBandPowerBins,1) = matSpectrum.at(i);
+            }
+            matSpectrum.clear();
+        }
     }
+
+    qDebug() << "FFT: " << specfft;
 
     // Create new fiffinfo
 
