@@ -267,7 +267,9 @@ private:
     QSharedPointer<DISPLIB::ChannelSelectionView>           m_pChannelSelectionView;        /**< ChannelSelectionView. */
     QList<int>                                    m_pSelectedChannels;
 
-    UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pBandPowerBuffer;         /**< Holds incoming data.*/
+    //UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pBandPowerBuffer;         /**< Holds incoming data.*/
+    QSharedPointer<UTILSLIB::CircularBuffer_Matrix_double> m_pBandPowerBuffer;
+
 
     SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr      m_pBandPowerInput;      /**< The RealTimeMultiSampleArray of the DummyToolbox input.*/
     SCSHAREDLIB::PluginOutputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr     m_pBandPowerOutput;     /**< The RealTimeMultiSampleArray of the DummyToolbox output.*/

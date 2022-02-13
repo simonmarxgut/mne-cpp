@@ -77,7 +77,8 @@ contains(MNECPP_CONFIG, static) {
             -lftbuffer \
             -lwritetofile \
 	    -lhpi \
-	    -lrtfwd
+            -lrtfwd \
+            -lbandpower
             #-ldummytoolbox
 
     contains(MNECPP_CONFIG, withGUSBAmp) {

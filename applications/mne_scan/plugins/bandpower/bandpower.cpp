@@ -51,7 +51,11 @@
 #include <disp/viewers/channelselectionview.h>
 #include <disp/viewers/helpers/channelinfomodel.h>
 
+#include <scMeas/realtimemultisamplearray.h>
+
 #include <chrono>
+
+#include <Eigen/Core>
 
 //=============================================================================================================
 // USED NAMESPACES
@@ -72,22 +76,23 @@ using namespace Eigen;
 
 BandPower::BandPower()
     : m_bProcessData(false)
-    , m_pBandPowerInput(NULL)
-    , m_pBandPowerOutput(NULL)
-    , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
     , m_iIntervallLengthFactor(5)
     , m_iResolutionFactorFFT(1)
     , m_iOrderAR(40)
     , m_iEvalsAR(100)
     , m_sSpectrumMethod("AR")
     , m_iDetrendMethod(0)
+    , m_iBandPowerChannels(1)
+    , m_iBandPowerBins(1)
     , m_dDataSampFreq(-1)
     , m_dFreqMin(10)
     , m_dFreqMax(30)
     , m_iNTimeSteps(-1)
     , m_iNChannels(-1)
-    , m_iBandPowerChannels(1)
-    , m_iBandPowerBins(1)
+  //  , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
+    , m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(64)))
+    , m_pBandPowerInput(NULL)
+    , m_pBandPowerOutput(NULL)
 {
 }
 
@@ -127,16 +132,16 @@ void BandPower::init()
     m_outputConnectors.append(m_pBandPowerOutput);
 
     //Delete Buffer - will be initailzed with first incoming data
-    if(!m_pBandPowerBuffer.isNull())
-        m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
+//    if(!m_pBandPowerBuffer.isNull())
+//        m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
 
-    //add button
-    m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
-    m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
-    connect(m_pActionSelectSensors.data(), &QAction::triggered,
-            this, &BandPower::showSensorSelectionWidget);
-    addPluginAction(m_pActionSelectSensors);
-    m_pActionSelectSensors->setVisible(true);
+   //add button
+//   m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
+//   m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
+//   connect(m_pActionSelectSensors.data(), &QAction::triggered,
+//            this, &BandPower::showSensorSelectionWidget);
+//   addPluginAction(m_pActionSelectSensors);
+//   m_pActionSelectSensors->setVisible(true);
 }
 
 //=============================================================================================================
@@ -150,7 +155,7 @@ void BandPower::unload()
 bool BandPower::start()
 {
     //Start thread
-    //QThread::start(); //Don't start here, so that we don't have to wait for pFiffInfo later
+    QThread::start(); //Don't start here, so that we don't have to wait for pFiffInfo later
 
     return true;
 }
@@ -165,6 +170,8 @@ bool BandPower::stop()
 
     m_pBandPowerOutput->measurementData()->clear();
     m_pBandPowerBuffer->clear();
+
+    m_bPluginControlWidgetsInit = false;
 
     return true;
 }
@@ -307,13 +314,13 @@ void BandPower::evaluateSelectedChannelsOnly(const QStringList &selectedChannels
 
 void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 {
-    QSharedPointer<RealTimeMultiSampleArray> pRTMSA = pMeasurement.dynamicCast<RealTimeMultiSampleArray>();
+    if(QSharedPointer<RealTimeMultiSampleArray> pRTMSA = pMeasurement.dynamicCast<RealTimeMultiSampleArray>()){
 
     if(pRTMSA) {
         //Check if buffer initialized
-        if(!m_pBandPowerBuffer) {
-            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
-        }
+//        if(!m_pBandPowerBuffer) {
+//            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
+//        }
 
         //Fiff information
         if(!m_pFiffInfo) {                
@@ -377,11 +384,15 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             //Init widgets
             if(m_iNChannels == -1) {
                 m_iNChannels = pRTMSA->getMultiSampleArray().first().rows();
-                initPluginControlWidgets();
-                QThread::start();
+                //initPluginControlWidgets();
+                //QThread::start();
             }
             if(m_iNTimeSteps == -1)
                 m_iNTimeSteps = pRTMSA->getMultiSampleArray().first().cols();
+
+            if(!m_bPluginControlWidgetsInit){
+                initPluginControlWidgets();
+            }
 
             for(unsigned char i = 0; i < pRTMSA->getMultiSampleArray().size(); ++i) {
                 // Please note that we do not need a copy here since this function will block until
@@ -393,7 +404,11 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             }
         }
     }
+    }
 }
+
+//=============================================================================================================
+
 
 void BandPower::initPluginControlWidgets()
 {
@@ -456,12 +471,19 @@ void BandPower::initPluginControlWidgets()
     m_pChannelInfoModel->layoutChanged(m_pChannelSelectionView->getLayoutMap());
 
     emit pluginControlWidgetsChanged(plControlWidgets, this->getName());
+
+    m_bPluginControlWidgetsInit = true;
 }
 
 //=============================================================================================================
 
 void BandPower::run()
 {
+
+    while(!m_pFiffInfo){
+        msleep(1000);
+    }
+
     // Length of block
     int iNSamples = m_iNTimeSteps * m_iIntervallLengthFactor;
 
@@ -493,7 +515,8 @@ void BandPower::run()
     {
         //Dispatch the inputs
         MatrixXd t_mat;
-        while(!m_pBandPowerBuffer->pop(t_mat));
+//        while(!m_pBandPowerBuffer->pop(t_mat));
+        if(m_pBandPowerBuffer->pop(t_mat)){
 
         m_qMutex.lock();
 
@@ -591,8 +614,9 @@ void BandPower::run()
         m_qMutex.unlock();
 
         //Send the data to the connected plugins and the online display
-
-        m_pBandPowerOutput->measurementData()->setValue(bandpower);
+        if(!isInterruptionRequested()){
+            m_pBandPowerOutput->measurementData()->setValue(bandpower);
+        }
 
         qDebug() << "Power:" << bandpower(0,0);
 
@@ -600,6 +624,7 @@ void BandPower::run()
         if(t_NSampleMat.cols()/m_iNTimeSteps > 1)
             for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i)
                 t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+    }
     }
 }
 
