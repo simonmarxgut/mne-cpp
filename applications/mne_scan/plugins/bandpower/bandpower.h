@@ -250,6 +250,8 @@ private:
     qint32 m_iBandPowerChannels;
     qint32 m_iBandPowerBins;
 
+    qint32 m_iNSamples;
+
     double m_dDataSampFreq;
 
     double m_dFreqMin;

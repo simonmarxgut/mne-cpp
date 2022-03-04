@@ -55,6 +55,10 @@
 
 #include <chrono>
 
+//=============================================================================================================
+// EIGEN INCLUDES
+//=============================================================================================================
+
 #include <Eigen/Core>
 
 //=============================================================================================================
@@ -90,7 +94,7 @@ BandPower::BandPower()
     , m_iNTimeSteps(-1)
     , m_iNChannels(-1)
   //  , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
-    , m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(64)))
+    , m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(40)))
     , m_pBandPowerInput(NULL)
     , m_pBandPowerOutput(NULL)
 {
@@ -297,7 +301,7 @@ void BandPower::evaluateSelectedChannelsOnly(const QStringList &selectedChannels
 
     m_pSelectedChannels.clear();
 
-    qDebug() << "selected channels";
+//    qDebug() << "selected channels";
 
     //Add selected channels to list
     for(int i = 0; i<m_pFiffInfo_orig->ch_names.length(); i++) {
@@ -305,7 +309,7 @@ void BandPower::evaluateSelectedChannelsOnly(const QStringList &selectedChannels
 
         if(selectedChannels.contains(channel)) {
             m_pSelectedChannels.append(i);
-            qDebug() << i;
+//            qDebug() << i;
         }
     }
 }
@@ -316,7 +320,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 {
     if(QSharedPointer<RealTimeMultiSampleArray> pRTMSA = pMeasurement.dynamicCast<RealTimeMultiSampleArray>()){
 
-    if(pRTMSA) {
+//    if(pRTMSA) {
         //Check if buffer initialized
 //        if(!m_pBandPowerBuffer) {
 //            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
@@ -325,8 +329,11 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
         //Fiff information
         if(!m_pFiffInfo) {                
 
-            m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
+            m_pFiffInfo = pRTMSA->info();
+
+            //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
             m_pFiffInfo_orig = pRTMSA->info();
+//            m_pFiffInfo = pRTMSA->info();
             //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
 
             //Init output - Uncomment this if you also uncommented the m_pDummyOutput in the constructor above
@@ -375,6 +382,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/m_iNTimeSteps;
 
             m_pBandPowerOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
+            m_pBandPowerOutput->measurementData()->setMultiArraySize(1);
 
             m_pBandPowerOutput->measurementData()->setVisibility(true);
         }
@@ -384,8 +392,8 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             //Init widgets
             if(m_iNChannels == -1) {
                 m_iNChannels = pRTMSA->getMultiSampleArray().first().rows();
-                //initPluginControlWidgets();
-                //QThread::start();
+                initPluginControlWidgets();
+//                QThread::start();
             }
             if(m_iNTimeSteps == -1)
                 m_iNTimeSteps = pRTMSA->getMultiSampleArray().first().cols();
@@ -403,7 +411,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
                 }
             }
         }
-    }
+//    }
     }
 }
 
@@ -484,6 +492,7 @@ void BandPower::run()
         msleep(1000);
     }
 
+    msleep(200);
     // Length of block
     int iNSamples = m_iNTimeSteps * m_iIntervallLengthFactor;
 
@@ -501,7 +510,7 @@ void BandPower::run()
 
     MatrixXd t_NSampleMat(m_iNChannels,iNSamples);
 
-    if(m_iIntervallLengthFactor > 1)
+    if(m_iIntervallLengthFactor > 1){
         for(int i=0; i<m_iIntervallLengthFactor-1;++i){
             MatrixXd t_mat;
             while(!m_pBandPowerBuffer->pop(t_mat));
@@ -510,121 +519,128 @@ void BandPower::run()
             else
                 qWarning() << "[BandPower::run] Data matrix has wrong format - not processing";
         }
+    }
 
-    while(!isInterruptionRequested())
-    {
+    while(!isInterruptionRequested()){
         //Dispatch the inputs
         MatrixXd t_mat;
 //        while(!m_pBandPowerBuffer->pop(t_mat));
         if(m_pBandPowerBuffer->pop(t_mat)){
 
-        m_qMutex.lock();
+//            m_qMutex.lock();
 
-        if(t_NSampleMat.cols()/m_iNTimeSteps != m_iIntervallLengthFactor)
-        {
-            if (t_NSampleMat.cols()/m_iNTimeSteps > m_iIntervallLengthFactor) {
-                t_NSampleMat = t_NSampleMat.rightCols(m_iIntervallLengthFactor*m_iNTimeSteps); //right-most m_iNTimeSteps columns don't matter here, since they are overwritten anyway
-            } else {
-                Eigen::MatrixXd t_NSampleMatTemp(t_NSampleMat.rows(),m_iIntervallLengthFactor*m_iNTimeSteps);
-                t_NSampleMatTemp.leftCols(t_NSampleMat.cols()) = t_NSampleMat;
-                for(int i=0; i < (m_iIntervallLengthFactor - t_NSampleMat.cols()/m_iNTimeSteps); i++)
-                {
-                    t_NSampleMatTemp.block(0,t_NSampleMat.cols() + i*m_iNTimeSteps, t_mat.rows(), t_mat.cols());
-                    while(!m_pBandPowerBuffer->pop(t_mat));
+
+            if(t_NSampleMat.cols()/m_iNTimeSteps != m_iIntervallLengthFactor){
+                if(t_NSampleMat.cols()/m_iNTimeSteps > m_iIntervallLengthFactor) {
+                    t_NSampleMat = t_NSampleMat.rightCols(m_iIntervallLengthFactor*m_iNTimeSteps); //right-most m_iNTimeSteps columns don't matter here, since they are overwritten anyway
                 }
-                t_NSampleMat = t_NSampleMatTemp;
+                else{Eigen::MatrixXd t_NSampleMatTemp(t_NSampleMat.rows(),m_iIntervallLengthFactor*m_iNTimeSteps);
+                    t_NSampleMatTemp.leftCols(t_NSampleMat.cols()) = t_NSampleMat;
+                    for(int i=0; i < (m_iIntervallLengthFactor - t_NSampleMat.cols()/m_iNTimeSteps); i++){
+                        t_NSampleMatTemp.block(0,t_NSampleMat.cols() + i*m_iNTimeSteps, t_mat.rows(), t_mat.cols());
+                        while(!m_pBandPowerBuffer->pop(t_mat));
+                    }
+                    t_NSampleMat = t_NSampleMatTemp;
+                }
+                iNSamples = m_iIntervallLengthFactor * m_iNTimeSteps;
+                FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,dSampFreq);
+                qDebug() << "[BandPower::run] FFT resolution " << (FFTFreqs[1] - FFTFreqs[0]);
             }
-            iNSamples = m_iIntervallLengthFactor * m_iNTimeSteps;
-            FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,dSampFreq);
-            qDebug() << "[BandPower::run] FFT resolution " << (FFTFreqs[1] - FFTFreqs[0]);
-        }
-        t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
-        MatrixXd t_SampleSubMat;
+            t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
+            MatrixXd t_SampleSubMat;
 
-        if (m_pSelectedChannels.length() == 0)
-            t_SampleSubMat = t_NSampleMat;
-        else {
-            if (m_pSelectedChannels.at(0) < t_NSampleMat.rows())
-                t_SampleSubMat = t_NSampleMat.block(m_pSelectedChannels.at(0),0,1,t_NSampleMat.cols());
-            else
-            {
+            if (m_pSelectedChannels.length() == 0){
                 t_SampleSubMat = t_NSampleMat;
-                qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(0) << "not in sample Matrix";
             }
-            for (int i=1; i < m_pSelectedChannels.length(); ++i)
-            {
-                if (m_pSelectedChannels.at(i) < t_NSampleMat.rows()) {
-                    t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
-                    t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
+            else{
+                if (m_pSelectedChannels.at(0) < t_NSampleMat.rows()){
+                    t_SampleSubMat = t_NSampleMat.block(m_pSelectedChannels.at(0),0,1,t_NSampleMat.cols());
                 }
-                else
-                    qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
-            }
-        }
-
-        MatrixXd t_SampleMat_noav = Spectral::detrendData(t_SampleSubMat,m_iDetrendMethod);
-
-        QVector<VectorXd> matSpectrum;
-        //double stepwidth = 0;
-
-        Eigen::MatrixXd bandpower(m_iBandPowerChannels*m_iBandPowerBins,1);
-
-        if(m_sSpectrumMethod=="AR"){
-            MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iBandPowerBins, m_iEvalsAR, true);
-            QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_SampleMat_noav,m_iOrderAR,true);
-            matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true);
-            //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
-            //for (int i=0; i < matSpectrum.length(); ++i)
-            //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
-            if(m_iBandPowerChannels <= matSpectrum.length())
-                qDebug() << "More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
-            for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i){
-                bandpower.block(i*m_iBandPowerBins,0,m_iBandPowerBins,1) = matSpectrum.at(i);
-            }
-            matSpectrum.clear();
-        } else if(m_sSpectrumMethod=="FFT") {
-            // Generate hanning window
-            QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
-            MatrixXd matTaps = tapers.first;
-            VectorXd vecTapWeights = tapers.second;
-
-            // Compute Spectrum
-            QVector<MatrixXcd> matTaperedSpectrum;
-            matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(t_SampleMat_noav, matTaps, iNSamples, true);
-
-            matSpectrum = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNSamples, dSampFreq, false);
-
-            // Select frequencies that fall within the band
-            if(m_iBandPowerChannels <= matSpectrum.length())
-                qDebug() << "[BandPower::run] More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
-
-            double binwidth = (m_dFreqMax-m_dFreqMin)/static_cast<double>(m_iBandPowerBins);
-
-            if (binwidth < (FFTFreqs[1] - FFTFreqs[0]))
-                qDebug() << "[BandPower::run] Selected bin width is smaller than FFT resolution";
-
-            for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i)
-                for (int j=0; j<m_iBandPowerBins; ++j)
-                {
-                    bandpower(i*m_iBandPowerBins + j,1) = Spectral::bandpowerFromSpectrumEntriesOffset(FFTFreqs, matSpectrum.at(i), m_dFreqMin + j*binwidth, m_dFreqMin + (j+1)*binwidth);
+                else{
+                    t_SampleSubMat = t_NSampleMat;
+                    qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(0) << "not in sample Matrix";
                 }
-            matSpectrum.clear();
+                for (int i=1; i < m_pSelectedChannels.length(); ++i){
+                    if (m_pSelectedChannels.at(i) < t_NSampleMat.rows()) {
+                        t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
+                        t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
+                    }
+                    else{
+                        qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
+                    }
+                }
+            }
+            MatrixXd t_SampleMat_noav = Spectral::detrendData(t_SampleSubMat,m_iDetrendMethod);
+
+            QVector<VectorXd> matSpectrum;
+            //double stepwidth = 0;
+
+            Eigen::MatrixXd bandpower(m_iBandPowerChannels*m_iBandPowerBins,1);
+
+
+
+            if(m_sSpectrumMethod=="AR"){
+                MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iBandPowerBins, m_iEvalsAR, true);
+                QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_SampleMat_noav,m_iOrderAR,true);
+                matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true);
+                //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
+                //for (int i=0; i < matSpectrum.length(); ++i)
+                //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
+                if(m_iBandPowerChannels <= matSpectrum.length()){
+                    qDebug() << "More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
+                }
+                for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i){
+                    bandpower.block(i*m_iBandPowerBins,0,m_iBandPowerBins,1) = matSpectrum.at(i);
+                }
+                matSpectrum.clear();
+            }
+            else if(m_sSpectrumMethod=="FFT") {
+                // Generate hanning window
+                QPair<MatrixXd, VectorXd> tapers = Spectral::generateTapers(iNSamples, "hanning");
+                MatrixXd matTaps = tapers.first;
+                VectorXd vecTapWeights = tapers.second;
+
+                // Compute Spectrum
+                QVector<MatrixXcd> matTaperedSpectrum;
+                matTaperedSpectrum = Spectral::computeTaperedSpectraMatrix(t_SampleMat_noav, matTaps, iNSamples, true);
+
+                matSpectrum = Spectral::psdFromTaperedSpectra(matTaperedSpectrum, vecTapWeights, iNSamples, dSampFreq, false);
+
+                // Select frequencies that fall within the band
+                if(m_iBandPowerChannels <= matSpectrum.length()){
+                    qDebug() << "[BandPower::run] More channels selected than pre-defined! Only the first " << m_iBandPowerChannels << " are displayed!";
+                }
+                double binwidth = (m_dFreqMax-m_dFreqMin)/static_cast<double>(m_iBandPowerBins);
+
+                if (binwidth < (FFTFreqs[1] - FFTFreqs[0])){
+                    qDebug() << "[BandPower::run] Selected bin width is smaller than FFT resolution";
+                }
+                for(int i=0; i<std::min(m_iBandPowerChannels,matSpectrum.length()); ++i){
+                    for (int j=0; j<m_iBandPowerBins; ++j){
+                        bandpower(i*m_iBandPowerBins + j,1) = Spectral::bandpowerFromSpectrumEntriesOffset(FFTFreqs, matSpectrum.at(i), m_dFreqMin + j*binwidth, m_dFreqMin + (j+1)*binwidth);
+                    }
+                }
+                matSpectrum.clear();
+            }
+
+//            m_qMutex.unlock();
+
+
+            //Send the data to the connected plugins and the online display
+            if(!isInterruptionRequested()){
+                m_pBandPowerOutput->measurementData()->setValue(bandpower);
+//                m_pBandPowerOutput->measurementData()->setValue(t_mat);
+            }
+
+//            qDebug() << "Power:" << bandpower(0,0);
+
+            //move matrix entries one block to the left
+//            if(t_NSampleMat.cols()/m_iNTimeSteps > 1){
+//                for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i){
+//                    t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+//                }
+//            }
         }
-
-        m_qMutex.unlock();
-
-        //Send the data to the connected plugins and the online display
-        if(!isInterruptionRequested()){
-            m_pBandPowerOutput->measurementData()->setValue(bandpower);
-        }
-
-        qDebug() << "Power:" << bandpower(0,0);
-
-        //move matrix entries one block to the left
-        if(t_NSampleMat.cols()/m_iNTimeSteps > 1)
-            for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i)
-                t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
-    }
     }
 }
 
