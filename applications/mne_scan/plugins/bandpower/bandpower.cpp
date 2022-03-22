@@ -54,6 +54,7 @@
 #include <scMeas/realtimemultisamplearray.h>
 
 #include <chrono>
+#include <QElapsedTimer>
 
 //=============================================================================================================
 // EIGEN INCLUDES
@@ -93,8 +94,8 @@ BandPower::BandPower()
     , m_dFreqMax(30)
     , m_iNTimeSteps(-1)
     , m_iNChannels(-1)
-  //  , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
-    , m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(40)))
+    , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
+    //, m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(40)))
     , m_pBandPowerInput(NULL)
     , m_pBandPowerOutput(NULL)
 {
@@ -136,16 +137,16 @@ void BandPower::init()
     m_outputConnectors.append(m_pBandPowerOutput);
 
     //Delete Buffer - will be initailzed with first incoming data
-//    if(!m_pBandPowerBuffer.isNull())
-//        m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
+    if(!m_pBandPowerBuffer.isNull())
+        m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr();
 
    //add button
-//   m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
-//   m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
-//   connect(m_pActionSelectSensors.data(), &QAction::triggered,
-//            this, &BandPower::showSensorSelectionWidget);
-//   addPluginAction(m_pActionSelectSensors);
-//   m_pActionSelectSensors->setVisible(true);
+   m_pActionSelectSensors = new QAction(QIcon(":/images/selectSensors.png"), tr("Show the channel selection view for bandpower computation"),this);
+   m_pActionSelectSensors->setToolTip(tr("Show the channel selection view for bandpower computation"));
+   connect(m_pActionSelectSensors.data(), &QAction::triggered,
+            this, &BandPower::showSensorSelectionWidget);
+   addPluginAction(m_pActionSelectSensors);
+   m_pActionSelectSensors->setVisible(true);
 }
 
 //=============================================================================================================
@@ -159,7 +160,7 @@ void BandPower::unload()
 bool BandPower::start()
 {
     //Start thread
-    QThread::start(); //Don't start here, so that we don't have to wait for pFiffInfo later
+    //QThread::start(); //Don't start here, so that we don't have to wait for pFiffInfo later
 
     return true;
 }
@@ -174,6 +175,8 @@ bool BandPower::stop()
 
     m_pBandPowerOutput->measurementData()->clear();
     m_pBandPowerBuffer->clear();
+
+    m_iNChannels = -1;
 
     m_bPluginControlWidgetsInit = false;
 
@@ -322,16 +325,16 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
 //    if(pRTMSA) {
         //Check if buffer initialized
-//        if(!m_pBandPowerBuffer) {
-//            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
-//        }
+        if(!m_pBandPowerBuffer) {
+            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
+        }
 
         //Fiff information
         if(!m_pFiffInfo) {                
 
-            m_pFiffInfo = pRTMSA->info();
+    //        m_pFiffInfo = pRTMSA->info();
 
-            //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
+            m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
             m_pFiffInfo_orig = pRTMSA->info();
 //            m_pFiffInfo = pRTMSA->info();
             //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
@@ -393,7 +396,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             if(m_iNChannels == -1) {
                 m_iNChannels = pRTMSA->getMultiSampleArray().first().rows();
                 initPluginControlWidgets();
-//                QThread::start();
+                QThread::start();
             }
             if(m_iNTimeSteps == -1)
                 m_iNTimeSteps = pRTMSA->getMultiSampleArray().first().cols();
@@ -489,10 +492,9 @@ void BandPower::run()
 {
 
     while(!m_pFiffInfo){
-        msleep(1000);
+        msleep(100);
     }
 
-    msleep(200);
     // Length of block
     int iNSamples = m_iNTimeSteps * m_iIntervallLengthFactor;
 
@@ -524,10 +526,13 @@ void BandPower::run()
     while(!isInterruptionRequested()){
         //Dispatch the inputs
         MatrixXd t_mat;
-//        while(!m_pBandPowerBuffer->pop(t_mat));
-        if(m_pBandPowerBuffer->pop(t_mat)){
+        while(!m_pBandPowerBuffer->pop(t_mat));
+//        if(m_pBandPowerBuffer->pop(t_mat)){
 
-//            m_qMutex.lock();
+            m_qMutex.lock();
+
+            QElapsedTimer timer;
+            timer.start();
 
 
             if(t_NSampleMat.cols()/m_iNTimeSteps != m_iIntervallLengthFactor){
@@ -549,6 +554,8 @@ void BandPower::run()
             t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
             MatrixXd t_SampleSubMat;
 
+            qDebug() << "After first if time" << timer.elapsed();
+
             if (m_pSelectedChannels.length() == 0){
                 t_SampleSubMat = t_NSampleMat;
             }
@@ -560,16 +567,22 @@ void BandPower::run()
                     t_SampleSubMat = t_NSampleMat;
                     qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(0) << "not in sample Matrix";
                 }
-                for (int i=1; i < m_pSelectedChannels.length(); ++i){
+                qDebug() << "Before conservative Resize" << timer.elapsed();
+                int i;
+                for (i=1; i < m_pSelectedChannels.length(); ++i){
                     if (m_pSelectedChannels.at(i) < t_NSampleMat.rows()) {
                         t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
                         t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
                     }
                     else{
                         qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
-                    }
+                    }                    
                 }
+                qDebug() << "After conservative Resize" << timer.elapsed() << "for loop iterations" << i;
             }
+
+            qDebug() << "Second if time" << timer.elapsed();
+
             MatrixXd t_SampleMat_noav = Spectral::detrendData(t_SampleSubMat,m_iDetrendMethod);
 
             QVector<VectorXd> matSpectrum;
@@ -577,12 +590,15 @@ void BandPower::run()
 
             Eigen::MatrixXd bandpower(m_iBandPowerChannels*m_iBandPowerBins,1);
 
-
+            qDebug() << "Before AR/FFT time" << timer.elapsed();
 
             if(m_sSpectrumMethod=="AR"){
                 MatrixXcd ARSpectraWeights = Spectral::generateARSpectraWeights(m_dFreqMin/dSampFreq,m_dFreqMax/dSampFreq, m_iBandPowerBins, m_iEvalsAR, true);
+                qDebug() << "After ARSpectraWeights time" << timer.elapsed();
                 QVector<QPair<VectorXd, double>> ARCoeffs = Spectral::calculateARWeightsMEMMatrix(t_SampleMat_noav,m_iOrderAR,true);
+                qDebug() << "After calculateARWeightsMEMMatrix time" << timer.elapsed();
                 matSpectrum = Spectral::psdFromARSpectra(ARCoeffs,ARSpectraWeights,dSampFreq,true);
+                qDebug() << "After psdFromARSpectra" << timer.elapsed();
                 //stepwidth = (m_dFreqMax - m_dFreqMin)/(matSpectrum.at(0).size() - 1); //check where the evaluation points lie
                 //for (int i=0; i < matSpectrum.length(); ++i)
                 //        meanbandpower(0,0) += 1e10*bandpowerFromSpectrumEntries(matSpectrum.at(i),stepwidth)/matSpectrum.length();
@@ -593,6 +609,7 @@ void BandPower::run()
                     bandpower.block(i*m_iBandPowerBins,0,m_iBandPowerBins,1) = matSpectrum.at(i);
                 }
                 matSpectrum.clear();
+                qDebug() << "End of AR if statement time" << timer.elapsed();
             }
             else if(m_sSpectrumMethod=="FFT") {
                 // Generate hanning window
@@ -623,24 +640,24 @@ void BandPower::run()
                 matSpectrum.clear();
             }
 
-//            m_qMutex.unlock();
+            m_qMutex.unlock();
 
 
             //Send the data to the connected plugins and the online display
-            if(!isInterruptionRequested()){
+//            if(!isInterruptionRequested()){
                 m_pBandPowerOutput->measurementData()->setValue(bandpower);
 //                m_pBandPowerOutput->measurementData()->setValue(t_mat);
-            }
+//            }
 
-//            qDebug() << "Power:" << bandpower(0,0);
+            qDebug() << "Power:" << bandpower(0,0);
 
             //move matrix entries one block to the left
-//            if(t_NSampleMat.cols()/m_iNTimeSteps > 1){
-//                for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i){
-//                    t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
-//                }
-//            }
-        }
+            if(t_NSampleMat.cols()/m_iNTimeSteps > 1){
+                for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i){
+                    t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+                }
+            }
+//        }
     }
 }
 
