@@ -568,17 +568,22 @@ void BandPower::run()
                     qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(0) << "not in sample Matrix";
                 }
                 qDebug() << "Before conservative Resize" << timer.elapsed();
-                int i;
-                for (i=1; i < m_pSelectedChannels.length(); ++i){
+
+                int rows = 1;
+                for (int i=1; i < m_pSelectedChannels.length(); ++i){
                     if (m_pSelectedChannels.at(i) < t_NSampleMat.rows()) {
-                        t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
-                        t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
+                        rows += 1;
+//                        t_SampleSubMat.conservativeResize(t_SampleSubMat.rows() + 1, NoChange);
+//                        t_SampleSubMat.row(i) = t_NSampleMat.row(m_pSelectedChannels.at(i));
                     }
                     else{
                         qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
                     }                    
                 }
-                qDebug() << "After conservative Resize" << timer.elapsed() << "for loop iterations" << i;
+                t_SampleSubMat.conservativeResize(rows, NoChange);
+                for(int j = 1; j < m_pSelectedChannels.length(); ++j){
+                    t_SampleSubMat.row(j) = t_NSampleMat.row(m_pSelectedChannels.at(j));
+                }
             }
 
             qDebug() << "Second if time" << timer.elapsed();
