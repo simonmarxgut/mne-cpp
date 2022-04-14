@@ -592,3 +592,10 @@ void Spectrum::showSensorSelectionWidget()
         m_pChannelSelectionView->show();
     }
 }
+
+//=============================================================================================================
+
+QString Spectrum::getBuildInfo()
+{
+    return QString(SPECTRUMPLUGIN::buildDateTime()) + QString(" - ")  + QString(SPECTRUMPLUGIN::buildHash());
+}

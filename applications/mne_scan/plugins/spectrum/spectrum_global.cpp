@@ -1,13 +1,14 @@
 //=============================================================================================================
 /**
- * @file     bandpower_global.h
- * @author   Lorenz Esch <lesch@mgh.harvard.edu>
- * @since    0.1.0
- * @date     June, 2018
+ * @file     spectrum_global.cpp
+ * @author   Juan G Prieto <jgarciaprieto@mgh.harvard.edu>;
+ *           Gabriel B Motta <gbmotta@mgh.harvard.edu>;
+ * @since    0.1.9
+ * @date     September, 2021
  *
  * @section  LICENSE
  *
- * Copyright (C) 2018, Lorenz Esch. All rights reserved.
+ * Copyright (C) 2021, Juan G Prieto, Gabriel B Motta. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided that
  * the following conditions are met:
@@ -28,54 +29,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @brief    Contains the Bandpower plugin library export/import macros.
+ * @brief    spectrum plugin global definitions.
  *
  */
-
-#ifndef BANDPOWER_GLOBAL_H
-#define BANDPOWER_GLOBAL_H
 
 //=============================================================================================================
 // INCLUDES
 //=============================================================================================================
 
-#include <utils/buildinfo.h>
+#include "spectrum_global.h"
 
 //=============================================================================================================
-// QT INCLUDES
+// DEFINE METHODS
 //=============================================================================================================
 
-#include <QtCore/qglobal.h>
+const char* SPECTRUMPLUGIN::buildDateTime(){ return UTILSLIB::dateTimeNow();};
 
 //=============================================================================================================
-// PREPROCESSOR DEFINES
-//=============================================================================================================
 
-#if defined(BANDPOWER_PLUGIN)
-#  define BANDPOWERSHARED_EXPORT Q_DECL_EXPORT    /**< Q_DECL_EXPORT must be added to the declarations of symbols used when compiling a shared library. */
-#else
-#  define BANDPOWERSHARED_EXPORT Q_DECL_IMPORT    /**< Q_DECL_IMPORT must be added to the declarations of symbols used when compiling a client that uses the shared library. */
-#endif
-
-namespace BANDPOWERPLUGIN{
+const char* SPECTRUMPLUGIN::buildHash(){ return UTILSLIB::gitHash();};
 
 //=============================================================================================================
-/**
- * Returns build date and time.
- */
-BANDPOWERSHARED_EXPORT const char* buildDateTime();
 
-//=============================================================================================================
-/**
- * Returns abbreviated build git hash.
- */
-BANDPOWERSHARED_EXPORT const char* buildHash();
-
-//=============================================================================================================
-/**
- * Returns full build git hash.
- */
-BANDPOWERSHARED_EXPORT const char* buildHashLong();
-}
-
-#endif // BANDPOWER_GLOBAL_H
+const char* SPECTRUMPLUGIN::buildHashLong(){ return UTILSLIB::gitHashLong();};

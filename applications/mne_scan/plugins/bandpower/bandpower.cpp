@@ -94,8 +94,9 @@ BandPower::BandPower()
     , m_dFreqMax(30)
     , m_iNTimeSteps(-1)
     , m_iNChannels(-1)
-    , m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
+    //, m_pBandPowerBuffer(CircularBuffer<Eigen::MatrixXd>::SPtr())
     //, m_pBandPowerBuffer(QSharedPointer<CircularBuffer_Matrix_double>(new CircularBuffer_Matrix_double(40)))
+    , m_pBandPowerBuffer(QSharedPointer<UTILSLIB::CircularBuffer_Matrix_double>::create(64))
     , m_pBandPowerInput(NULL)
     , m_pBandPowerOutput(NULL)
 {
@@ -326,63 +327,80 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 //    if(pRTMSA) {
         //Check if buffer initialized
         if(!m_pBandPowerBuffer) {
-            m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
+            //m_pBandPowerBuffer = CircularBuffer<Eigen::MatrixXd>::SPtr(new CircularBuffer<Eigen::MatrixXd>(64));
+            m_pBandPowerBuffer = QSharedPointer<UTILSLIB::CircularBuffer_Matrix_double>::create(40);
         }
 
         //Fiff information
-        if(!m_pFiffInfo) {                
+        if(!m_pFiffInfo) {
 
     //        m_pFiffInfo = pRTMSA->info();
 
             m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo(*pRTMSA->info().data())); // pointer not working here...
             m_pFiffInfo_orig = pRTMSA->info();
 //            m_pFiffInfo = pRTMSA->info();
-            //m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
+//            m_pFiffInfo = FIFFLIB::FiffInfo::SPtr(new FIFFLIB::FiffInfo);
 
             //Init output - Uncomment this if you also uncommented the m_pDummyOutput in the constructor above
             //m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
 
             m_dDataSampFreq = m_pFiffInfo->sfreq;
 
-            m_pFiffInfo->filename = "";
-            m_pFiffInfo->bads.clear();
-            m_pFiffInfo->nchan = m_iBandPowerChannels * m_iBandPowerBins;
+//            m_pFiffInfo->filename = "";
+//            m_pFiffInfo->bads.clear();
+//            m_pFiffInfo->nchan = m_iBandPowerChannels * m_iBandPowerBins;
 
-            QList<FiffChInfo> fakeChList;
+            qDebug()<<"m_pFiffinfo nchan"<<m_pFiffInfo->nchan;
+
+
+            QList<FiffChInfo> fakeChList = m_pFiffInfo_orig->chs;
+            QList<FiffChInfo> newfakeChList;
             FiffChInfo fakeCh;
-            /*fakeCh.ch_name = "AR";
-            fakeCh.kind = 502;
-            fakeCh.range = -1;
-            //fakeCh.setMinValue(0.5e-20);
-            //fakeCh.setMaxValue(2e-20);
-            fakeCh.unit = -1;
-            fakeChList.append(fakeCh);
-            fakeCh.ch_name = "FFT";
-            fakeChList.append(fakeCh);*/
-            fakeCh.ch_name = "BP ";
-            fakeCh.kind = 502;
-            fakeCh.range = -1;
-            //fakeCh.setMinValue(0.5e-20);
-            //fakeCh.setMaxValue(2e-20);
-            fakeCh.unit = -1;
+//            /*fakeCh.ch_name = "AR";
+//            fakeCh.kind = 502;
+//            fakeCh.range = -1;
+//            //fakeCh.setMinValue(0.5e-20);
+//            //fakeCh.setMaxValue(2e-20);
+//            fakeCh.unit = -1;
+//            fakeChList.append(fakeCh);
+//            fakeCh.ch_name = "FFT";
+//            fakeChList.append(fakeCh);*/
+//            fakeCh.ch_name = "BP ";
+//            fakeCh.kind = 502;
+//            fakeCh.range = -1;
+//            //fakeCh.setMinValue(0.5e-20);
+//            //fakeCh.setMaxValue(2e-20);
+//            fakeCh.unit = -1;
 
             QStringList fakeChNames;
 
-            for(int i=0; i<m_iBandPowerChannels; ++i)
-                for(int j=0; j<m_iBandPowerBins; ++j)
-                {
-                    fakeCh.ch_name = QString("BP %1-%2").arg(i).arg(j);
-                    fakeChList.append(fakeCh);
-                    fakeChNames.append(fakeCh.ch_name);
-                }
+//            for(int i=0; i<m_iBandPowerChannels; ++i)
+//                for(int j=0; j<m_iBandPowerBins; ++j)
+//                {
+//                    fakeCh.ch_name = QString("BP %1-%2").arg(i).arg(j);
+//                    fakeChList.append(fakeCh);
+//                    fakeChNames.append(fakeCh.ch_name);
+//                }
+            m_pFiffInfo->nchan = m_iBandPowerChannels;
+            int i = 0;
+            while(newfakeChList.length()<m_iBandPowerChannels){
+                newfakeChList.append(fakeChList[i]);
+                QString ChName = QString("BP%1").arg(i);
+                newfakeChList[i].ch_name=ChName;
+                fakeChNames.append(ChName);
+                i++;
+            }
 
-            m_pFiffInfo->chs = fakeChList;
+            m_pFiffInfo->chs = newfakeChList;
+
+            QStringList realChNames = m_pFiffInfo->ch_names;
+
 
             m_pFiffInfo->ch_names = fakeChNames;
 
-            m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
+//            m_pFiffInfo->file_id = FIFFLIB::FiffId::new_file_id(); //check if necessary
 
-            m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/m_iNTimeSteps;
+//           // m_pFiffInfo->sfreq = pRTMSA->info()->sfreq/m_iNTimeSteps;
 
             m_pBandPowerOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
             m_pBandPowerOutput->measurementData()->setMultiArraySize(1);
@@ -492,7 +510,7 @@ void BandPower::run()
 {
 
     while(!m_pFiffInfo){
-        msleep(100);
+        msleep(1000);
     }
 
     // Length of block
@@ -510,6 +528,10 @@ void BandPower::run()
     // Create storage for data intervall
     //
 
+    int iNChannels = std::min(m_iBandPowerChannels, m_iNChannels);
+
+    qDebug()<<"iNChannels = "<<iNChannels;
+
     MatrixXd t_NSampleMat(m_iNChannels,iNSamples);
 
     if(m_iIntervallLengthFactor > 1){
@@ -526,14 +548,18 @@ void BandPower::run()
     while(!isInterruptionRequested()){
         //Dispatch the inputs
         MatrixXd t_mat;
-        while(!m_pBandPowerBuffer->pop(t_mat));
-//        if(m_pBandPowerBuffer->pop(t_mat)){
+//        while(!m_pBandPowerBuffer->pop(t_mat));
+        if(m_pBandPowerBuffer->pop(t_mat)){
 
             m_qMutex.lock();
-
+//            for(int i = 0; i<iNChannels; ++i){
+//                qDebug()<<"Bandpoweroutput"<<t_mat(i,0);
+//            }
             QElapsedTimer timer;
             timer.start();
 
+            t_mat.conservativeResize(iNChannels, NoChange);
+            t_NSampleMat.conservativeResize(iNChannels, NoChange);
 
             if(t_NSampleMat.cols()/m_iNTimeSteps != m_iIntervallLengthFactor){
                 if(t_NSampleMat.cols()/m_iNTimeSteps > m_iIntervallLengthFactor) {
@@ -551,10 +577,16 @@ void BandPower::run()
                 FFTFreqs = Spectral::calculateFFTFreqs(iNSamples,dSampFreq);
                 qDebug() << "[BandPower::run] FFT resolution " << (FFTFreqs[1] - FFTFreqs[0]);
             }
+
+
             t_NSampleMat.rightCols(m_iNTimeSteps) = t_mat;
             MatrixXd t_SampleSubMat;
 
             qDebug() << "After first if time" << timer.elapsed();
+
+            while(m_pSelectedChannels.length() > iNChannels){
+                m_pSelectedChannels.removeLast();
+            }
 
             if (m_pSelectedChannels.length() == 0){
                 t_SampleSubMat = t_NSampleMat;
@@ -578,7 +610,7 @@ void BandPower::run()
                     }
                     else{
                         qDebug() << "m_pSelectedChannels" << m_pSelectedChannels.at(i) << "not in sample Matrix";
-                    }                    
+                    }
                 }
                 t_SampleSubMat.conservativeResize(rows, NoChange);
                 for(int j = 1; j < m_pSelectedChannels.length(); ++j){
@@ -594,6 +626,13 @@ void BandPower::run()
             //double stepwidth = 0;
 
             Eigen::MatrixXd bandpower(m_iBandPowerChannels*m_iBandPowerBins,1);
+
+            t_SampleSubMat.conservativeResize(iNChannels, NoChange);
+            t_SampleMat_noav.conservativeResize(iNChannels, NoChange);
+            t_mat.conservativeResize(iNChannels, NoChange);
+            t_NSampleMat.conservativeResize(iNChannels, NoChange);
+
+
 
             qDebug() << "Before AR/FFT time" << timer.elapsed();
 
@@ -644,25 +683,29 @@ void BandPower::run()
                 }
                 matSpectrum.clear();
             }
+            qDebug() << "after AR/FFT time" << timer.elapsed();
 
             m_qMutex.unlock();
 
-
-            //Send the data to the connected plugins and the online display
-//            if(!isInterruptionRequested()){
-                m_pBandPowerOutput->measurementData()->setValue(bandpower);
-//                m_pBandPowerOutput->measurementData()->setValue(t_mat);
+//            for(int i = 0; i<iNChannels; ++i){
+//                qDebug()<<"Bandpoweroutput"<<t_mat(i,0);
 //            }
 
-            qDebug() << "Power:" << bandpower(0,0);
+            //Send the data to the connected plugins and the online display
+            if(!isInterruptionRequested()){
+                m_pBandPowerOutput->measurementData()->setValue(bandpower);
+//                m_pBandPowerOutput->measurementData()->setValue(t_mat);
+            }
+
+//            qDebug() << "Power:" << bandpower(0,0);
 
             //move matrix entries one block to the left
             if(t_NSampleMat.cols()/m_iNTimeSteps > 1){
                 for(int i=0; i<t_NSampleMat.cols()/m_iNTimeSteps-1; ++i){
-                    t_NSampleMat.block(0,i*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,m_iNChannels,m_iNTimeSteps);
+                    t_NSampleMat.block(0,i*m_iNTimeSteps,iNChannels,m_iNTimeSteps) = t_NSampleMat.block(0,(i+1)*m_iNTimeSteps,iNChannels,m_iNTimeSteps);
                 }
             }
-//        }
+        } //if statment
     }
 }
 
@@ -676,4 +719,11 @@ void BandPower::showSensorSelectionWidget()
         m_pChannelSelectionView->activateWindow();
         m_pChannelSelectionView->show();
     }
+}
+
+//=============================================================================================================
+
+QString BandPower::getBuildInfo()
+{
+    return QString(BANDPOWERPLUGIN::buildDateTime()) + QString(" - ")  + QString(BANDPOWERPLUGIN::buildHash());
 }

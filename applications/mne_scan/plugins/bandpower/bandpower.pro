@@ -61,7 +61,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         FormFiles/bandpowersetupwidget.cpp \
-        bandpower.cpp
+        bandpower.cpp \
+        bandpower_global.cpp
 
 HEADERS += \
         FormFiles/bandpowersetupwidget.h \

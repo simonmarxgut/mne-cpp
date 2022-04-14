@@ -61,7 +61,8 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         FormFiles/spectrumsetupwidget.cpp \
-        spectrum.cpp
+        spectrum.cpp \
+        spectrum_global.cpp
 HEADERS += \
         FormFiles/spectrumsetupwidget.h \
         spectrum.h \

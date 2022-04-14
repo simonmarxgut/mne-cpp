@@ -49,6 +49,8 @@
 
 #include <scShared/Plugins/abstractalgorithm.h>
 
+#include <fiff/fiff_evoked_set.h>
+
 //=============================================================================================================
 // QT INCLUDES
 //=============================================================================================================
@@ -124,6 +126,7 @@ public:
     virtual SCSHAREDLIB::AbstractPlugin::PluginType getType() const;
     virtual QString getName() const;
     virtual QWidget* setupWidget();
+    virtual QString getBuildInfo();
 
     //=========================================================================================================
     /**
@@ -269,8 +272,8 @@ private:
     QSharedPointer<DISPLIB::ChannelSelectionView>           m_pChannelSelectionView;        /**< ChannelSelectionView. */
     QList<int>                                    m_pSelectedChannels;
 
-    UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pBandPowerBuffer;         /**< Holds incoming data.*/
-    //QSharedPointer<UTILSLIB::CircularBuffer_Matrix_double> m_pBandPowerBuffer;
+//    UTILSLIB::CircularBuffer<Eigen::MatrixXd>::SPtr    m_pBandPowerBuffer;         /**< Holds incoming data.*/
+    QSharedPointer<UTILSLIB::CircularBuffer_Matrix_double> m_pBandPowerBuffer;
 
 
     SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr      m_pBandPowerInput;      /**< The RealTimeMultiSampleArray of the DummyToolbox input.*/

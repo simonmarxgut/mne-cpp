@@ -69,7 +69,7 @@ SUBDIRS += \
 
 #Algorithms
 SUBDIRS += \
-    dummytoolbox \
+    #dummytoolbox \
     rtcmne \
     averaging \
     covariance \
@@ -80,8 +80,8 @@ SUBDIRS += \
     rtfwd \
     spectrum \
     bandpower \
-    rereference \
-    linearclassifier \
-    normalize \
+    #rereference \
+    #linearclassifier \
+    #normalize \
 
 
