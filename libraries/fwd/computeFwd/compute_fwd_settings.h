@@ -117,6 +117,8 @@ public:
     bool mri_head_ident;        /**< Are the head and MRI coordinates the same?. */
     QString bemname;            /**< BEM model file. */
     QString solname;            /**< Solution file. */
+    QString inputsolname;
+    bool inputsol;
     QString mindistoutname;     /**< Output file for omitted source space points. */
     bool filter_spaces;         /**< Filter the source space points. */
     Eigen::Vector3f r0;         /**< Sphere model origin . */

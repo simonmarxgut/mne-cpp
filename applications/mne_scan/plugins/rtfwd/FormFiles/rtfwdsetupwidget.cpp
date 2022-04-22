@@ -67,6 +67,7 @@ RtFwdSetupWidget::RtFwdSetupWidget(RtFwd* toolbox, QWidget *parent)
 
     // init line edits
     m_ui.m_qLineEdit_SolName->setText(m_pRtFwd->m_pFwdSettings->solname);
+    m_ui.m_qLineEdit_InputSolName->setText(m_pRtFwd->m_pFwdSettings->inputsolname);
     m_ui.m_qLineEdit_MeasName->setText(m_pRtFwd->m_pFwdSettings->measname);
     m_ui.m_qLineEdit_BemName->setText(m_pRtFwd->m_pFwdSettings->bemname);
     m_ui.m_qLineEdit_SourceName->setText(m_pRtFwd->m_pFwdSettings->srcname);
@@ -103,6 +104,7 @@ RtFwdSetupWidget::RtFwdSetupWidget(RtFwd* toolbox, QWidget *parent)
 
     // connect line edits
     connect(m_ui.m_qLineEdit_SolName, &QLineEdit::textChanged, this, &RtFwdSetupWidget::onSolNameChanged);
+    connect(m_ui.m_qLineEdit_InputSolName, &QLineEdit::textChanged, this, &RtFwdSetupWidget::onInputSolNameChanged);
     connect(m_ui.m_qLineEdit_MinDistName, &QLineEdit::textChanged, this, &RtFwdSetupWidget::onMinDistNameChanged);
 
     // connect checkboxes
@@ -128,12 +130,15 @@ RtFwdSetupWidget::RtFwdSetupWidget(RtFwd* toolbox, QWidget *parent)
 
     // connet push buttons
     connect(m_ui.m_qPushButton_SolNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showFwdDirDialog);
+    connect(m_ui.m_qPushButton_InputSolNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showInputSolDirDialog);
     connect(m_ui.m_qPushButton_BemNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showBemFileDialog);
     connect(m_ui.m_qPushButton_MeasNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showMeasFileDialog);
     connect(m_ui.m_qPushButton_SourceNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showSourceFileDialog);
     connect(m_ui.m_qPushButton_MriNameDialog, &QPushButton::released, this, &RtFwdSetupWidget::showMriFileDialog);
     connect(m_ui.m_qPushButton_MinDistOutDialog, &QPushButton::released, this, &RtFwdSetupWidget::showMinDistDirDialog);
     connect(m_ui.m_qPushButton_EEGModelFileDialog, &QPushButton::released, this, &RtFwdSetupWidget::showEEGModelFileDialog);
+
+    m_pRtFwd->m_pFwdSettings->inputsol=false;
 }
 
 //=============================================================================================================
@@ -159,6 +164,34 @@ void RtFwdSetupWidget::onSolNameChanged()
     if(t_sFileName.contains("-fwd.fif")) {
         m_pRtFwd->m_pFwdSettings->solname = t_sFileName;
     } else {
+        qWarning() << "rtFwdSetup: make sure to name solution file correctly: -fwd.fif";
+    }
+}
+
+//=============================================================================================================
+
+void RtFwdSetupWidget::showInputSolDirDialog()
+{
+    QString t_sInputSolDir = QFileDialog::getOpenFileName(this,
+                                                         tr("Select Directory to store the forward solution"),
+                                                         QString(),
+                                                         tr("Fif Files (*-fwd.fif)"));
+
+    m_ui.m_qLineEdit_InputSolName->setText(t_sInputSolDir);
+}
+
+//=============================================================================================================
+
+void RtFwdSetupWidget::onInputSolNameChanged()
+{
+    QString t_sInputSolName = m_ui.m_qLineEdit_SolName->text();
+
+    // check for file endings
+    if(t_sInputSolName.contains("-fwd.fif")) {
+        m_pRtFwd->m_pFwdSettings->inputsolname = t_sInputSolName;
+        m_pRtFwd->m_pFwdSettings->inputsol=true;
+    } else {
+        m_pRtFwd->m_pFwdSettings->inputsol=false;
         qWarning() << "rtFwdSetup: make sure to name solution file correctly: -fwd.fif";
     }
 }

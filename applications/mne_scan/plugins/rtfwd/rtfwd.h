@@ -85,6 +85,7 @@ namespace FSLIB{
 
 namespace INVERSELIB{
     struct HpiFitResult;
+//    struct RealTimeFwdSolution;
 }
 
 namespace SCMEASLIB{
@@ -214,6 +215,7 @@ private:
     QString                                     m_sAtlasDir;                /**< File to Atlas. */
 
     QSharedPointer<INVERSELIB::HpiFitResult>    m_pHpiFitResult;            /**< The Hpi fitting result.**/
+//    QSharedPointer<INVERSELIB::RealTimeFwdSolution>    m_pRTFS;            /**< The Hpi fitting result.**/
 
     QSharedPointer<FIFFLIB::FiffInfo>           m_pFiffInfo;                /**< Fiff measurement info.*/
     FIFFLIB::FiffCoordTrans                     m_transDevHead;             /**< Updated meg->head transformation. */
@@ -222,6 +224,7 @@ private:
 
     SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeHpiResult>::SPtr            m_pHpiInput;            /**< The incoming Hpi data.*/
     SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeMultiSampleArray>::SPtr     m_pRTMSAInput;          /**< The incoming data.*/
+    SCSHAREDLIB::PluginInputData<SCMEASLIB::RealTimeFwdSolution>::SPtr          m_pRTFSInput;
 
     SCSHAREDLIB::PluginOutputData<SCMEASLIB::RealTimeFwdSolution>::SPtr         m_pRTFSOutput;          /**< The fwd solution.*/
 

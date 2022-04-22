@@ -124,6 +124,7 @@ public:
      */
     virtual void setValue(const MNELIB::MNEForwardSolution::SPtr pFwdSolution);
 
+
     //=========================================================================================================
     /**
      * Returns the current value set.

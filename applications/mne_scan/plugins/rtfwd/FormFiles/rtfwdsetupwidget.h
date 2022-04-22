@@ -112,6 +112,18 @@ private:
 
     //=========================================================================================================
     /**
+     * Shows forward solution directory selection dialog
+     */
+    void showInputSolDirDialog();
+
+    //=========================================================================================================
+    /**
+     * change name of solution file
+     */
+    void onInputSolNameChanged();
+
+    //=========================================================================================================
+    /**
      * Shows measurement selection dialog
      */
     void showMeasFileDialog();

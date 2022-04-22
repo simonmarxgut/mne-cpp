@@ -146,6 +146,11 @@ void RtFwd::init()
             this, &RtFwd::update, Qt::DirectConnection);
     m_inputConnectors.append(m_pRTMSAInput);
 
+    m_pRTFSInput = PluginInputData<RealTimeFwdSolution>::create(this, "rtFwd RTFS In", "rtFwd real-time forward solution input data");
+    connect(m_pRTFSInput.data(), &PluginInputConnector::notify,
+            this, &RtFwd::update, Qt::DirectConnection);
+    m_inputConnectors.append(m_pRTFSInput);
+
     // Output
     m_pRTFSOutput = PluginOutputData<RealTimeFwdSolution>::create(this, "rtFwdOut", "rtFwd real-time forward solution output data");
     m_pRTFSOutput->measurementData()->setName(this->getName());//Provide name to auto store widget settings
@@ -291,7 +296,20 @@ void RtFwd::update(SCMEASLIB::Measurement::SPtr pMeasurement)
         if(!m_bPluginControlWidgetsInit) {
             initPluginControlWidgets();
         }
+    } else if(QSharedPointer<RealTimeFwdSolution> pRTFS = pMeasurement.dynamicCast<RealTimeFwdSolution>()) {
+        //Fiff information
+        m_mutex.lock();
+        if(!m_pFiffInfo) {
+            m_pFiffInfo = pRTFS->getFiffInfo();
+        }
+
+        m_pRTFSInput.get();
+
+        if(!m_bPluginControlWidgetsInit) {
+            initPluginControlWidgets();
+        }
     }
+
 }
 
 //=============================================================================================================
@@ -402,7 +420,10 @@ void RtFwd::run()
         m_mutex.unlock();
         msleep(200);
     }
+    if(m_pFwdSettings->inputsol){
 
+    }
+    qDebug()<<"get name after if"<<m_pRTFSInput->getName();
     m_mutex.lock();
     m_pFwdSettings->pFiffInfo = m_pFiffInfo;
     m_pRTFSOutput->measurementData()->setFiffInfo(m_pFiffInfo);
