@@ -181,6 +181,8 @@ bool BandPower::stop()
 
     m_bPluginControlWidgetsInit = false;
 
+    m_pFiffInfo.clear();
+
     return true;
 }
 
@@ -345,7 +347,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             //m_pBandPowerOutput->data()->initFromFiffInfo(m_pFiffInfo);
 
             m_dDataSampFreq = m_pFiffInfo->sfreq;
-
+            m_pFiffInfo->sfreq=40;
 //            m_pFiffInfo->filename = "";
 //            m_pFiffInfo->bads.clear();
 //            m_pFiffInfo->nchan = m_iBandPowerChannels * m_iBandPowerBins;
@@ -357,15 +359,15 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             QList<FiffChInfo> newfakeChList;
             FiffChInfo fakeCh;
 
-//            /*fakeCh.ch_name = "AR";
-//            fakeCh.kind = 502;
-//            fakeCh.range = -1;
-//            //fakeCh.setMinValue(0.5e-20);
-//            //fakeCh.setMaxValue(2e-20);
-//            fakeCh.unit = -1;
-//            fakeChList.append(fakeCh);
-//            fakeCh.ch_name = "FFT";
-//            fakeChList.append(fakeCh);*/
+            /*fakeCh.ch_name = "AR";
+            fakeCh.kind = 502;
+            fakeCh.range = -1;
+            //fakeCh.setMinValue(0.5e-20);
+            //fakeCh.setMaxValue(2e-20);
+            fakeCh.unit = -1;
+            fakeChList.append(fakeCh);
+            fakeCh.ch_name = "FFT";
+            fakeChList.append(fakeCh);*/
 //            fakeCh.ch_name = "BP ";
 //            fakeCh.kind = 502;
 //            fakeCh.range = -1;
@@ -375,24 +377,34 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
             QStringList fakeChNames;
 
-//            for(int i=0; i<m_iBandPowerChannels; ++i)
-//                for(int j=0; j<m_iBandPowerBins; ++j)
-//                {
+            for(int i=0; i<m_iBandPowerChannels; ++i)
+                for(int j=0; j<m_iBandPowerBins; ++j)
+                {
+                    newfakeChList.append(fakeChList[i]);
+                    QString ChName = QString("BP %1-%2").arg(i).arg(j);
+                    newfakeChList[i*m_iBandPowerBins+j].ch_name = ChName;
+                    fakeChNames.append(ChName);
+                    newfakeChList[i*m_iBandPowerBins+j].cal=1e-23;
+                    newfakeChList[i*m_iBandPowerBins+j].unit=-1;
+                    newfakeChList[i*m_iBandPowerBins+j].range=-1;
+                    newfakeChList[i*m_iBandPowerBins+j].kind=FIFFV_MISC_CH;
 //                    fakeCh.ch_name = QString("BP %1-%2").arg(i).arg(j);
 //                    fakeChList.append(fakeCh);
 //                    fakeChNames.append(fakeCh.ch_name);
-//                }
-            m_pFiffInfo->nchan = m_iBandPowerChannels;
-            int i = 0;
-            while(newfakeChList.length()<m_iBandPowerChannels){
-                newfakeChList.append(fakeChList[i]);
-                QString ChName = QString("BP%1").arg(i);
-                newfakeChList[i].ch_name=ChName;
-                fakeChNames.append(ChName);
-                newfakeChList[i].range=2e-20;
-                newfakeChList[i].unit=1;
-                i++;
-            }
+                }
+            m_pFiffInfo->nchan = m_iBandPowerChannels*m_iBandPowerBins;
+
+            qDebug()<<"Sample Frequency FiffInfo"<<m_pFiffInfo->sfreq;
+//            int i = 0;
+//            while(newfakeChList.length()<m_iBandPowerChannels){
+//                newfakeChList.append(fakeChList[i]);
+//                QString ChName = QString("BP%1").arg(i);
+//                newfakeChList[i].ch_name=ChName;
+//                fakeChNames.append(ChName);
+//                newfakeChList[i].range=2e-20;
+//                newfakeChList[i].unit=1;
+//                i++;
+//            }
 
             m_pFiffInfo->chs = newfakeChList;
 
@@ -407,6 +419,7 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
 
             m_pBandPowerOutput->measurementData()->initFromFiffInfo(m_pFiffInfo);
             m_pBandPowerOutput->measurementData()->setMultiArraySize(1);
+
 
             m_pBandPowerOutput->measurementData()->setVisibility(true);
         }
@@ -533,7 +546,7 @@ void BandPower::run()
     // Create storage for data intervall
     //
 
-    int iNChannels = std::min(m_iBandPowerChannels, m_iNChannels);
+    int iNChannels = std::min(m_iBandPowerChannels, m_iNChannels)*m_iBandPowerBins;
 
     qDebug()<<"iNChannels = "<<iNChannels;
 
@@ -557,9 +570,9 @@ void BandPower::run()
         if(m_pBandPowerBuffer->pop(t_mat)){
 
             m_qMutex.lock();
-            for(int i = 0; i<iNChannels; ++i){
-                qDebug()<<"Bandpoweroutput"<<t_mat(i,0);
-            }
+//            for(int i = 0; i<iNChannels; ++i){
+//                qDebug()<<"Bandpoweroutput"<<t_mat(i,0);
+//            }
             QElapsedTimer timer;
             timer.start();
 
@@ -699,8 +712,8 @@ void BandPower::run()
 
             //Send the data to the connected plugins and the online display
             if(!isInterruptionRequested()){
-//                m_pBandPowerOutput->measurementData()->setValue(bandpower);
-                m_pBandPowerOutput->measurementData()->setValue(t_mat);
+                m_pBandPowerOutput->measurementData()->setValue(bandpower);
+//                m_pBandPowerOutput->measurementData()->setValue(t_mat);
             }
 
 //            qDebug() << "Power:" << bandpower(0,0);
