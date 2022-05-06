@@ -100,6 +100,7 @@ public:
                           int iIntervallLength = 1,
                           int iChannels = 1,
                           int iBins = 1,
+                          int iScalingFactor = 1,
                           int iDetrend = 0,
                           bool bIsRunning = false,
                           QWidget *parent = 0,
@@ -203,6 +204,12 @@ protected:
 
     //=========================================================================================================
     /**
+     * Slot called when number of bins Scalingfactor changes
+     */
+    void onUpdateSpinBoxScalingFactor(int value);
+
+    //=========================================================================================================
+    /**
      * Slot called when radio button method change
      */
     void onClickedButtonDetrend(int value);
@@ -215,6 +222,7 @@ protected:
     int         m_iIntervallLength;
     int         m_iChannels;
     int         m_iBins;
+    int         m_iScalingFactor;
     int         m_iDetrend;
     bool        m_bIsRunning;
 
@@ -231,6 +239,7 @@ signals:
     void changeDetrend(int value);
     void changeChannels(int value);
     void changeBins(int value);
+    void changeScalingFactor(int value);
 
 };
 } // NAMESPACE

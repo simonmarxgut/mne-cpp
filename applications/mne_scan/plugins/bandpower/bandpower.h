@@ -200,6 +200,14 @@ public:
 
     //=========================================================================================================
     /**
+             * Changes the scaling factor.
+             *
+             * @param[in] scalingfactor.
+             */
+    void changeScalingFactor(quint32 scalingfactor);
+
+    //=========================================================================================================
+    /**
              * Changes the order of the AR for spectrum estimation.
              *
              * @param[in] order  Order of the AR method.
@@ -254,6 +262,9 @@ private:
     qint32 m_iBandPowerBins;
 
     qint32 m_iNSamples;
+    qint32 m_iScalingFactor;
+
+    double m_dScaling;
 
     double m_dDataSampFreq;
 

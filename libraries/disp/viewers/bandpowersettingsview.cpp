@@ -68,7 +68,7 @@ using namespace DISPLIB;
 //=============================================================================================================
 
 BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, double dSampFreq, double dMin, double dMax,
-                                             const QString& sSpectrumMethod, int iIntervallLength, int iChannels, int iBins, int iDetrend, bool bIsRunning, QWidget *parent, Qt::WindowFlags f)
+                                             const QString& sSpectrumMethod, int iIntervallLength, int iChannels, int iBins, int iScalingFactor, int iDetrend, bool bIsRunning, QWidget *parent, Qt::WindowFlags f)
 : QWidget(parent, f)
 , ui(new Ui::BandPowerSettingsViewWidget)
 , m_sSettingsPath(sSettingsPath)
@@ -79,6 +79,7 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
 , m_iIntervallLength(iIntervallLength)
 , m_iChannels(iChannels)
 , m_iBins(iBins)
+, m_iScalingFactor(iScalingFactor)
 , m_iDetrend(iDetrend)
 , m_bIsRunning(bIsRunning)
 {
@@ -198,8 +199,12 @@ BandPowerSettingsView::BandPowerSettingsView(const QString& sSettingsPath, doubl
         break;
     }
 
+    connect(ui->spinBoxScalingFactor,static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            this,&BandPowerSettingsView::onUpdateSpinBoxScalingFactor);
+
     ui->spinBoxChannels->setValue(m_iChannels);
     ui->spinBoxBins->setValue(m_iBins);
+    ui->spinBoxScalingFactor->setValue(m_iScalingFactor);
 
 }
 
@@ -230,6 +235,7 @@ void BandPowerSettingsView::saveSettings(const QString& settingsPath)
     settings.setValue(settingsPath + QString("/detrend"), m_iDetrend);
     settings.setValue(settingsPath + QString("/channels"), m_iChannels);
     settings.setValue(settingsPath + QString("/bins"), m_iBins);
+    settings.setValue(settingsPath + QString("/scalingFactor"), m_iScalingFactor);
 
 }
 
@@ -251,6 +257,7 @@ void BandPowerSettingsView::loadSettings(const QString& settingsPath)
     m_iDetrend = settings.value(settingsPath + QString("/detrend"), m_iDetrend).toInt();
     m_iChannels = settings.value(settingsPath + QString("/channels"), m_iChannels).toInt();
     m_iBins = settings.value(settingsPath + QString("/bins"), m_iBins).toInt();
+    m_iScalingFactor = settings.value(settingsPath + QString("/scalingFactor"), m_iScalingFactor).toInt();
 }
 
 //=============================================================================================================
@@ -263,6 +270,7 @@ void BandPowerSettingsView::emitSignals()
     emit changeDetrend(m_iDetrend);
     emit changeChannels(m_iChannels);
     emit changeBins(m_iBins);
+    emit changeScalingFactor(m_iScalingFactor);
 }
 
 //=============================================================================================================
@@ -452,6 +460,17 @@ void BandPowerSettingsView::onUpdateSpinBoxBins(int value)
     m_iBins = value;
 
     emit changeBins(m_iBins);
+
+    saveSettings(m_sSettingsPath);
+}
+
+//=============================================================================================================
+
+void BandPowerSettingsView::onUpdateSpinBoxScalingFactor(int value)
+{
+    m_iScalingFactor = value;
+
+    emit changeScalingFactor(m_iScalingFactor);
 
     saveSettings(m_sSettingsPath);
 }

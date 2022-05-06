@@ -89,6 +89,8 @@ BandPower::BandPower()
     , m_iDetrendMethod(0)
     , m_iBandPowerChannels(1)
     , m_iBandPowerBins(1)
+    , m_iScalingFactor(1)
+    , m_dScaling(-1)
     , m_dDataSampFreq(-1)
     , m_dFreqMin(10)
     , m_dFreqMax(30)
@@ -178,6 +180,8 @@ bool BandPower::stop()
     m_pBandPowerBuffer->clear();
 
     m_iNChannels = -1;
+
+    m_dScaling = -1;
 
     m_bPluginControlWidgetsInit = false;
 
@@ -275,6 +279,17 @@ void BandPower::changeBandPowerBins(quint32 bins)
     m_iBandPowerBins = bins;
 
     qDebug() << "m_iBandPowerBins " << m_iBandPowerBins;
+}
+
+//=============================================================================================================
+
+void BandPower::changeScalingFactor(quint32 scalingfactor)
+{
+    QMutexLocker locker(&m_qMutex);
+
+    m_iScalingFactor = scalingfactor;
+
+    qDebug() << "m_iScalingFactor " << m_iScalingFactor;
 }
 
 //=============================================================================================================
@@ -384,10 +399,10 @@ void BandPower::update(SCMEASLIB::Measurement::SPtr pMeasurement)
                     QString ChName = QString("BP %1-%2").arg(i).arg(j);
                     newfakeChList[i*m_iBandPowerBins+j].ch_name = ChName;
                     fakeChNames.append(ChName);
-                    newfakeChList[i*m_iBandPowerBins+j].cal=1e-23;
+                    newfakeChList[i*m_iBandPowerBins+j].cal=1;
                     newfakeChList[i*m_iBandPowerBins+j].unit=-1;
-                    newfakeChList[i*m_iBandPowerBins+j].range=-1;
-                    newfakeChList[i*m_iBandPowerBins+j].kind=FIFFV_MISC_CH;
+                    newfakeChList[i*m_iBandPowerBins+j].range=1;
+                    newfakeChList[i*m_iBandPowerBins+j].kind=3;
 //                    fakeCh.ch_name = QString("BP %1-%2").arg(i).arg(j);
 //                    fakeChList.append(fakeCh);
 //                    fakeChNames.append(fakeCh.ch_name);
@@ -463,7 +478,7 @@ void BandPower::initPluginControlWidgets()
 
     BandPowerSettingsView* pBandPowerSettingsView = new BandPowerSettingsView(QString("MNESCAN/%1/").arg(this->getName()),m_dDataSampFreq,
                                                                               m_dFreqMin, m_dFreqMax, m_sSpectrumMethod, m_iIntervallLengthFactor,
-                                                                              m_iBandPowerChannels, m_iBandPowerBins, m_iDetrendMethod, true);
+                                                                              m_iBandPowerChannels, m_iBandPowerBins, m_iScalingFactor, m_iDetrendMethod, true);
     pBandPowerSettingsView->setObjectName("group_tab_Settings_General");
     plControlWidgets.append(pBandPowerSettingsView);
 
@@ -473,6 +488,7 @@ void BandPower::initPluginControlWidgets()
     connect(pBandPowerSettingsView,&BandPowerSettingsView::changeDetrend,this,&BandPower::changeDetrendMethod);
     connect(pBandPowerSettingsView,&BandPowerSettingsView::changeChannels,this,&BandPower::changeBandPowerChannels);
     connect(pBandPowerSettingsView,&BandPowerSettingsView::changeBins,this,&BandPower::changeBandPowerBins);
+    connect(pBandPowerSettingsView,&BandPowerSettingsView::changeScalingFactor,this,&BandPower::changeScalingFactor);
 
     ARSettingsView* pARSettingsView = new ARSettingsView(QString("MNESCAN/%1/").arg(this->getName()));
 
@@ -706,13 +722,26 @@ void BandPower::run()
 
             m_qMutex.unlock();
 
+
             for(int i = 0; i<iNChannels; ++i){
                 qDebug()<<"Bandpoweroutput"<<bandpower(i,0);
             }
 
+            if(m_dScaling==-1){
+                double max = 0;
+                for(int i = 0; i<iNChannels; ++i){
+                    if(max < bandpower(i,0)){
+                        max = bandpower(i,0);
+                    }
+                }
+                m_dScaling = 1/max*1e-4;
+            }
+            qDebug()<<"m_dScaling"<<m_dScaling;
+            qDebug()<<"m_iScalingFactor"<<m_iScalingFactor;
+
             //Send the data to the connected plugins and the online display
             if(!isInterruptionRequested()){
-                m_pBandPowerOutput->measurementData()->setValue(bandpower);
+                m_pBandPowerOutput->measurementData()->setValue(bandpower*m_dScaling*m_iScalingFactor);
 //                m_pBandPowerOutput->measurementData()->setValue(t_mat);
             }
 
