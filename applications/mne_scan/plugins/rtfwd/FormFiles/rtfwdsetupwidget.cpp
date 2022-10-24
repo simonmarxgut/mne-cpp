@@ -172,12 +172,21 @@ void RtFwdSetupWidget::onSolNameChanged()
 
 void RtFwdSetupWidget::showInputSolDirDialog()
 {
-    QString t_sInputSolDir = QFileDialog::getOpenFileName(this,
+    QString t_sFileName = QFileDialog::getOpenFileName(this,
                                                          tr("Select Directory to store the forward solution"),
                                                          QString(),
                                                          tr("Fif Files (*-fwd.fif)"));
 
-    m_ui.m_qLineEdit_InputSolName->setText(t_sInputSolDir);
+    m_ui.m_qLineEdit_InputSolName->setText(t_sFileName);
+
+    QFile t_fSource(t_sFileName);
+    if(t_fSource.open(QIODevice::ReadOnly)) {
+        m_pRtFwd->m_pFwdSettings->inputsolname = t_sFileName;
+        m_ui.m_qLineEdit_InputSolName->setText(t_sFileName);
+    } else {
+        qWarning() << "rtFwdSetup: Input Solution file cannot be opened";
+    }
+    t_fSource.close();
 }
 
 //=============================================================================================================

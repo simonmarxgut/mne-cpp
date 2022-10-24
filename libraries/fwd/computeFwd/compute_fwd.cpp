@@ -1401,6 +1401,7 @@ bool fiff_put_dir (FiffStream::SPtr& t_pStream, const QList<FiffDirEntry::SPtr>&
     return false;
 }
 
+
 //============================= write_solution.c =============================
 
 bool write_solution(const QString& name,         /* Destination file */
@@ -2493,3 +2494,26 @@ void ComputeFwd::storeFwd(const QString& sSolName)
     printf("done\n");
     printf("\nFinished.\n");
 }
+
+//=========================================================================================================
+
+bool ComputeFwd::loadFwd(const QString &sInputSolName)
+{
+
+
+    QFile fwdfile(sInputSolName);
+    FIFFLIB::FiffDirNode::SPtr DirNode;
+    FiffStream::SPtr pStream(new FiffStream(&fwdfile));
+    if(!pStream->open()){
+        return false;
+    }
+    QStringList list;
+    pStream->read_fwd(pStream->dirtree());
+
+    qDebug()<<"i was here :)"<<sInputSolName;
+    printf("read solution done\n");
+    return true;
+
+}
+
+

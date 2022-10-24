@@ -215,7 +215,8 @@ private:
     QString                                     m_sAtlasDir;                /**< File to Atlas. */
 
     QSharedPointer<INVERSELIB::HpiFitResult>    m_pHpiFitResult;            /**< The Hpi fitting result.**/
-//    QSharedPointer<INVERSELIB::RealTimeFwdSolution>    m_pRTFS;            /**< The Hpi fitting result.**/
+    QSharedPointer<SCMEASLIB::RealTimeFwdSolution>    m_pRTFS;            /**< The Hpi fitting result.**/
+
 
     QSharedPointer<FIFFLIB::FiffInfo>           m_pFiffInfo;                /**< Fiff measurement info.*/
     FIFFLIB::FiffCoordTrans                     m_transDevHead;             /**< Updated meg->head transformation. */

@@ -138,8 +138,16 @@ public:
      */
     void storeFwd(const QString& sSolName = "default");
 
+    //=========================================================================================================
+    /**
+     * Load Forward solution with given name. It defaults the name specified in
+     * @param[in] sInputSolName        The file name to load the current forward solution.
+     *
+     */
+    bool loadFwd(const QString& sInputSolName);
+
     // ToDo: make MNEForwardSolution the main output for the solution
-    // QSharedPointer<MNELIB::MNEForwardSolution> fwdSolution;  /**< MNE Forward solution that contains all results. */
+    QSharedPointer<MNELIB::MNEForwardSolution> fwdSolution;  /**< MNE Forward solution that contains all results. */
 
     QSharedDataPointer<FIFFLIB::FiffNamedMatrix> sol;           /**< Forward solution (will be part of fwdSolution once rafactored). */
     QSharedDataPointer<FIFFLIB::FiffNamedMatrix> sol_grad;      /**< Forward solution (Grad) (will be part of fwdSolution once rafactored). */

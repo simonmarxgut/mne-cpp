@@ -93,6 +93,7 @@ class FiffChPos;
 class FiffCoordTrans;
 class FiffDigitizerData;
 
+
 //=============================================================================================================
 /**
  * FiffStream provides an interface for reading from and writing to fiff files
@@ -275,6 +276,19 @@ public:
 
     //=========================================================================================================
     /**
+     * Reads a channel information record to a fif file
+     * The type, cal, unit, and pos members are explained in Table 9.5
+     * of the MNE manual
+     * Refactored: fiff_write_ch_info (MNE-C); fiff_write_ch_info (MNE-MATLAB)
+     *
+     * @param[in] ch     The channel information structure to write.
+     *
+     * @return true if succeeded, false otherwise.
+     */
+    bool read_ch_info(const FiffChInfo& ch);
+
+    //=========================================================================================================
+    /**
      * mne_read_cov - also for mne_read_noise_cov
      *
      * ### MNE toolbox root function ###
@@ -305,6 +319,7 @@ public:
     QList<FiffCtfComp> read_ctf_comp(const FiffDirNode::SPtr& p_Node, const QList<FiffChInfo>& p_Chs);
 
     //=========================================================================================================
+
     /**
      * Reimplemntation of load_digitizer_data (digitizer.c)
      *
@@ -320,6 +335,19 @@ public:
     bool read_digitizer_data(const FiffDirNode::SPtr& p_Node, FiffDigitizerData& p_digData);
 
     //=========================================================================================================
+
+    /**
+     * read fwd solution
+     *
+     *
+     * @param[in] p_Node         The node of interest.
+     *
+     * @return true when successful.
+     */
+    bool read_fwd(const FiffDirNode::SPtr& p_Node);
+
+    //=========================================================================================================
+
     /**
      * fiff_read_meas_info
      *

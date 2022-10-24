@@ -169,6 +169,8 @@ void RtFwd::unload()
 bool RtFwd::start()
 {
     // Maybe we can move all of this to the run() method?
+
+
     // Read BEM
     QFile t_fBem(m_pFwdSettings->bemname);
     FiffStream::SPtr stream(new FiffStream(&t_fBem));
@@ -182,6 +184,23 @@ bool RtFwd::start()
         return false;
     }
     stream->close();
+
+    //Read Input Forward Solution
+    if(!m_pFwdSettings->inputsolname.isNull()){
+        QFile t_fInputSol(m_pFwdSettings->inputsolname);
+        stream = FiffStream::SPtr(new FiffStream(&t_fInputSol));
+        if(!stream->open()){
+            QMessageBox msgBox;
+            msgBox.setText("The Input Solution cannot be opend. Choose another file.");
+            msgBox.setText(m_pFwdSettings->inputsolname);
+            msgBox.setStandardButtons(QMessageBox::Ok);
+            msgBox.setWindowFlags(Qt::WindowStaysOnTopHint);
+            msgBox.exec();
+            stream->close();
+            return false;
+        }
+        stream->close();
+    }
 
     // Read source space
     QFile t_fSource(m_pFwdSettings->srcname);
@@ -225,6 +244,7 @@ bool RtFwd::start()
         return false;
     }
     stream->close();
+
 
     //Start thread
     QThread::start();
@@ -303,7 +323,8 @@ void RtFwd::update(SCMEASLIB::Measurement::SPtr pMeasurement)
             m_pFiffInfo = pRTFS->getFiffInfo();
         }
 
-        m_pRTFSInput.get();
+        m_pRTFS = pRTFS;
+        m_mutex.unlock();
 
         if(!m_bPluginControlWidgetsInit) {
             initPluginControlWidgets();
@@ -410,140 +431,162 @@ void RtFwd::onAtlasDirChanged(const QString& sDirPath, const AnnotationSet::SPtr
 
 void RtFwd::run()
 {
-    // Wait for fiff the info to arrive
-    while(true) {
-        m_mutex.lock();
-        if(m_pFiffInfo) {
-            m_mutex.unlock();
-            break;
-        }
-        m_mutex.unlock();
-        msleep(200);
-    }
-    if(m_pFwdSettings->inputsol){
 
-    }
-    qDebug()<<"get name after if"<<m_pRTFSInput->getName();
-    m_mutex.lock();
-    m_pFwdSettings->pFiffInfo = m_pFiffInfo;
-    m_pRTFSOutput->measurementData()->setFiffInfo(m_pFiffInfo);
-    FiffCoordTransOld transMegHeadOld = m_transDevHead.toOld();
-    m_mutex.unlock();
+    if (m_pRTFS.isNull()){
 
-    // initialize fwd solution
-    emit statusInformationChanged(0);           // initializing
-    ComputeFwd::SPtr pComputeFwd = ComputeFwd::SPtr(new ComputeFwd(m_pFwdSettings));
-
-    QFile t_fSolution(m_pFwdSettings->solname);
-    MNEForwardSolution::SPtr pFwdSolution;
-    MNEForwardSolution::SPtr pClusteredFwd;
-
-    emit statusInformationChanged(4);           // not computed
-
-    // do recomputation if requested, not busy and transformation is different
-    bool bIsLargeHeadMovement = false;          // indicate if movement was large
-    bool bIsDifferent = false;                  // indicate if incoming transformation matrix is different
-    bool bDoRecomputation = false;              // indicate if we want to recompute
-    bool bDoClustering = false;                 // indicate if we want to cluster
-    bool bFwdReady = false;                     // only cluster if fwd is ready
-    bool bHpiConnectected = false;              // only update/recompute if hpi is connected
-    bool bDoFwdComputation = false;             // compute forward if requested
-    bool bIsInit = false;                       // only recompute if initial fwd solulion is calculated
-
-    while(!isInterruptionRequested()) {
-        m_mutex.lock();
-        bDoFwdComputation = m_bDoFwdComputation;
-        m_mutex.unlock();
-
-        if(bDoFwdComputation) {
-            emit statusInformationChanged(1);   // computing
+        // Wait for fiff the info to arrive
+        while(true) {
             m_mutex.lock();
-            m_bBusy = true;
-            m_mutex.unlock();
-
-            // compute and store
-            pComputeFwd->calculateFwd();
-            pComputeFwd->storeFwd();
-
-            // get Mne Forward Solution (in future this is not necessary, ComputeForward will have this as member)
-            pFwdSolution = MNEForwardSolution::SPtr(new MNEForwardSolution(t_fSolution, false, true));
-
-            // emit results to control widget
-            emit fwdSolutionAvailable(pFwdSolution->source_ori,
-                                      pFwdSolution->coord_frame,
-                                      pFwdSolution->nsource,
-                                      pFwdSolution->nchan,
-                                      pFwdSolution->src.size());
-
-            m_mutex.lock();
-            if(!m_bDoClustering) {
-                m_pRTFSOutput->measurementData()->setValue(pFwdSolution);
-                bFwdReady = false;                  // make sure to not cluster
-                emit statusInformationChanged(5);   //finished
+            if(m_pFiffInfo) {
+                m_mutex.unlock();
+                break;
             }
-            bFwdReady = true;                       // enable cluster
-            m_bDoFwdComputation = false;            // don't call this again if not requested
-            bIsInit = true;                         // init computation finished -> recomputation possible
             m_mutex.unlock();
+            msleep(200);
         }
 
-        // check if hpi is connected
+
         m_mutex.lock();
-        if(m_pHpiFitResult) {
-            bHpiConnectected = true;
-        }
+        m_pFwdSettings->pFiffInfo = m_pFiffInfo;
+        m_pRTFSOutput->measurementData()->setFiffInfo(m_pFiffInfo);
+        FiffCoordTransOld transMegHeadOld = m_transDevHead.toOld();
         m_mutex.unlock();
 
-        if(bHpiConnectected && bIsInit) {
-            // only recompute if hpi is connected
-            m_mutex.lock();
-            bIsLargeHeadMovement = m_pHpiFitResult->bIsLargeHeadMovement;
-            bIsDifferent = !(transMegHeadOld == m_pHpiFitResult->devHeadTrans.toOld());
-            bDoRecomputation = m_bDoRecomputation;
-            m_mutex.unlock();
 
-            // do recomputation if requested, a large head movement occured and devHeadTrans is different
-            if(bIsLargeHeadMovement && bIsDifferent && bDoRecomputation) {
-                emit statusInformationChanged(2);           // recomputing
+        QFile t_fSolution(m_pFwdSettings->solname);
+        MNEForwardSolution::SPtr pFwdSolution;
+        MNEForwardSolution pINFwdSolution;
+        MNEForwardSolution::SPtr pClusteredFwd;
+
+        emit statusInformationChanged(4);           // not computed
+
+        if(m_pFwdSettings->inputsol){
+            qDebug()<<"if statment inputsol";
+            QFile fwdfile(m_pFwdSettings->inputsolname);
+    //        FIFFLIB::FiffDirNode::SPtr DirNode;
+    //        FiffStream::SPtr pStream(new FiffStream(&fwdfile));
+    //        if(!pStream->open()){
+    //            qWarning("Cannot open Input Solution!");
+    //        }
+            MNEForwardSolution::read(fwdfile, pINFwdSolution);
+            //pComputeFwd->loadFwd(m_pFwdSettings->inputsolname);
+
+            m_pRTFSOutput->measurementData()->setValue();
+        }
+        else{
+
+            // initialize fwd solution
+            emit statusInformationChanged(0);           // initializing
+            ComputeFwd::SPtr pComputeFwd = ComputeFwd::SPtr(new ComputeFwd(m_pFwdSettings));
+
+            // do recomputation if requested, not busy and transformation is different
+            bool bIsLargeHeadMovement = false;          // indicate if movement was large
+            bool bIsDifferent = false;                  // indicate if incoming transformation matrix is different
+            bool bDoRecomputation = false;              // indicate if we want to recompute
+            bool bDoClustering = false;                 // indicate if we want to cluster
+            bool bFwdReady = false;                     // only cluster if fwd is ready
+            bool bHpiConnectected = false;              // only update/recompute if hpi is connected
+            bool bDoFwdComputation = false;             // compute forward if requested
+            bool bIsInit = false;                       // only recompute if initial fwd solulion is calculated
+
+            while(!isInterruptionRequested()) {
                 m_mutex.lock();
-                m_bBusy = true;
-                transMegHeadOld = m_pHpiFitResult->devHeadTrans.toOld();
+                bDoFwdComputation = m_bDoFwdComputation;
                 m_mutex.unlock();
 
-                pComputeFwd->updateHeadPos(&transMegHeadOld);
-                pFwdSolution->sol = pComputeFwd->sol;
-                pFwdSolution->sol_grad = pComputeFwd->sol_grad;
+                if(bDoFwdComputation) {
+                    emit statusInformationChanged(1);   // computing
+                    m_mutex.lock();
+                    m_bBusy = true;
+                    m_mutex.unlock();
 
+                    // compute and store
+                    pComputeFwd->calculateFwd();
+                    pComputeFwd->storeFwd();
+
+                    // get Mne Forward Solution (in future this is not necessary, ComputeForward will have this as member)
+                    pFwdSolution = MNEForwardSolution::SPtr(new MNEForwardSolution(t_fSolution, false, true));
+
+                    // emit results to control widget
+                    emit fwdSolutionAvailable(pFwdSolution->source_ori,
+                                              pFwdSolution->coord_frame,
+                                              pFwdSolution->nsource,
+                                              pFwdSolution->nchan,
+                                              pFwdSolution->src.size());
+
+                    m_mutex.lock();
+                    if(!m_bDoClustering) {
+                        m_pRTFSOutput->measurementData()->setValue(pFwdSolution);
+                        bFwdReady = false;                  // make sure to not cluster
+                        emit statusInformationChanged(5);   //finished
+                    }
+                    bFwdReady = true;                       // enable cluster
+                    m_bDoFwdComputation = false;            // don't call this again if not requested
+                    bIsInit = true;                         // init computation finished -> recomputation possible
+                    m_mutex.unlock();
+                }
+
+                // check if hpi is connected
                 m_mutex.lock();
-                m_bBusy = false;
+                if(m_pHpiFitResult) {
+                    bHpiConnectected = true;
+                }
                 m_mutex.unlock();
-                bFwdReady = true;
 
-                if(!bDoClustering) {
-                    m_pRTFSOutput->measurementData()->setValue(pFwdSolution);
+                if(bHpiConnectected && bIsInit) {
+                    // only recompute if hpi is connected
+                    m_mutex.lock();
+                    bIsLargeHeadMovement = m_pHpiFitResult->bIsLargeHeadMovement;
+                    bIsDifferent = !(transMegHeadOld == m_pHpiFitResult->devHeadTrans.toOld());
+                    bDoRecomputation = m_bDoRecomputation;
+                    m_mutex.unlock();
+
+                    // do recomputation if requested, a large head movement occured and devHeadTrans is different
+                    if(bIsLargeHeadMovement && bIsDifferent && bDoRecomputation) {
+                        emit statusInformationChanged(2);           // recomputing
+                        m_mutex.lock();
+                        m_bBusy = true;
+                        transMegHeadOld = m_pHpiFitResult->devHeadTrans.toOld();
+                        m_mutex.unlock();
+
+                        pComputeFwd->updateHeadPos(&transMegHeadOld);
+                        pFwdSolution->sol = pComputeFwd->sol;
+                        pFwdSolution->sol_grad = pComputeFwd->sol_grad;
+
+                        m_mutex.lock();
+                        m_bBusy = false;
+                        m_mutex.unlock();
+                        bFwdReady = true;
+
+                        if(!bDoClustering) {
+                            m_pRTFSOutput->measurementData()->setValue(pFwdSolution);
+                            bFwdReady = false;
+                            emit statusInformationChanged(5);       //finished
+                        }
+                    }
+                }
+
+                // do clustering if requested and fwd is ready
+                m_mutex.lock();
+                bDoClustering = m_bDoClustering;
+                m_mutex.unlock();
+
+                if(bDoClustering && bFwdReady) {
+                    emit statusInformationChanged(3);               // clustering
+                    pClusteredFwd = MNEForwardSolution::SPtr(new MNEForwardSolution(pFwdSolution->cluster_forward_solution(*m_pAnnotationSet.data(), 200)));
+                    emit clusteringAvailable(pClusteredFwd->nsource);
+
+                    m_pRTFSOutput->measurementData()->setValue(pClusteredFwd);
+
                     bFwdReady = false;
-                    emit statusInformationChanged(5);       //finished
+
+                    emit statusInformationChanged(5);               //finished
+
                 }
             }
         }
-
-        // do clustering if requested and fwd is ready
-        m_mutex.lock();
-        bDoClustering = m_bDoClustering;
-        m_mutex.unlock();
-
-        if(bDoClustering && bFwdReady) {
-            emit statusInformationChanged(3);               // clustering
-            pClusteredFwd = MNEForwardSolution::SPtr(new MNEForwardSolution(pFwdSolution->cluster_forward_solution(*m_pAnnotationSet.data(), 200)));
-            emit clusteringAvailable(pClusteredFwd->nsource);
-
-            m_pRTFSOutput->measurementData()->setValue(pClusteredFwd);
-
-            bFwdReady = false;
-
-            emit statusInformationChanged(5);               //finished
-        }
     }
+    qDebug()<<"get name after if"<<m_pRTFSInput->getName();
 }
 
 //=============================================================================================================

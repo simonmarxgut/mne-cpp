@@ -874,6 +874,165 @@ bool FiffStream::read_digitizer_data(const FiffDirNode::SPtr& p_Node, FiffDigiti
 }
 
 //=============================================================================================================
+ bool FiffStream::read_fwd(const FiffDirNode::SPtr &p_Node){
+    p_Node->print(100);
+    QList<FiffDirNode::SPtr> fiffb_fwds = p_Node->dir_tree_find(FIFFB_MNE_NAMED_MATRIX);
+    if(fiffb_fwds.size()==0){
+        qWarning("No FIFFB_MNE_NAMED_MATRIX found in File\n");
+        return false;
+    }
+    else{
+        qDebug()<<"QList is not empty size" << fiffb_fwds.size();
+    }
+
+    FiffTag::SPtr t_pTag;
+    fiffb_fwds[0]->find_tag(this, FIFF_MNE_FORWARD_SOLUTION, t_pTag);
+    if(t_pTag){
+        qDebug()<<"FIFF_MNE_FORWARD_SOLUTION 0 found";
+
+    }
+
+    FiffTag::SPtr t_pTag1;
+    fiffb_fwds[0]->find_tag(this, FIFF_MNE_NROW, t_pTag1);
+    if(t_pTag1){
+        qDebug()<<"FIFF_MNE_NROW"<<*t_pTag1->toInt();
+
+    }
+    FiffTag::SPtr t_pTag2;
+    fiffb_fwds[1]->find_tag(this, FIFF_MNE_NROW, t_pTag2);
+    if(t_pTag2){
+        qDebug()<<"FIFF_MNE_NROW"<<*t_pTag2->toInt();
+
+    }
+    FiffTag::SPtr t_pTag3;
+    fiffb_fwds[0]->find_tag(this, FIFF_MNE_NCOL, t_pTag3);
+    if(t_pTag3){
+        qDebug()<<"FIFF_MNE_NCOL"<<*t_pTag3->toInt();
+
+    }
+    FiffTag::SPtr t_pTag4;
+    fiffb_fwds[0]->find_tag(this, FIFF_MNE_NCOL, t_pTag4);
+    if(t_pTag4){
+        qDebug()<<"FIFF_MNE_NCOL"<<*t_pTag4->toInt();
+
+    }
+
+    QList<FiffCtfComp> data;
+
+
+
+    qint32 i, k, p, col, row;
+    fiff_int_t kind, pos;
+    FiffTag::SPtr t_pTag11;
+    for(k =0; k<fiffb_fwds.size(); ++k){
+        FiffDirNode::SPtr node = fiffb_fwds[k];
+        FiffNamedMatrix::SDPtr mat(new FiffNamedMatrix());
+        this->read_named_matrix(node, FIFF_MNE_FORWARD_SOLUTION, *mat.data());
+        for(p=0; p<node->nent(); ++p){
+            kind = node->dir[p]->kind;
+            pos = node->dir[p]->pos;
+            if (kind == FIFF_MNE_FORWARD_SOLUTION){
+                this->read_tag(t_pTag11, pos);
+                break;
+            }
+        }
+        if(!t_pTag11){
+            qWarning("Forward Solution not found\n");
+        }
+    }
+
+
+
+
+
+
+//    FiffTag::SPtr t_pTag1;
+//    fiffb_fwds[1]->find_tag(this, FIFF_MNE_FORWARD_SOLUTION, t_pTag1);
+//    if(t_pTag1){
+//        qDebug()<<"FIFF_MNE_FORWARD_SOLUTION 1 found";
+//    }
+
+//    FiffTag::SPtr t_pTag2;
+//    int nrow_meg;
+//    fiffb_fwds[0]->find_tag(this, FIFF_MNE_NROW, t_pTag2);
+//    if(t_pTag2){
+//        qDebug()<<"Tag found! Fiff_mne_nrow";
+//        nrow_meg = *t_pTag2->toInt();
+//        qDebug()<<nrow_meg;
+//    }
+//    else{
+//        qDebug()<<"nothing found! fiff_mne_row";
+//    }
+
+//    FiffTag::SPtr t_pTag3;
+//    int nrow_eeg;
+//    fiffb_fwds[1]->find_tag(this, FIFF_MNE_NROW, t_pTag3);
+//    if(t_pTag3){
+//        qDebug()<<"Tag found! FIFF_MNE_NROW";
+//        nrow_eeg = *t_pTag3->toInt();
+//        qDebug()<<nrow_eeg;
+//    }
+//    else{
+//        qDebug()<<"nothing found! FIFF_MNE_NROW";
+//    }
+
+//    FiffTag::SPtr t_pTag4;
+//    //Matrix<int, Dynamic, Dynamic> ncol_meg;
+//    fiffb_fwds[0]->find_tag(this, FIFF_MNE_NCOL, t_pTag2);
+//    if(t_pTag2){
+//        qDebug()<<"Tag found! FIFF_MNE_NCOL";
+//        //ncol_meg = t_pTag4->toIntMatrix();
+//        //qDebug()<<ncol_meg(0,0);
+//        //qDebug()<<ncol_meg.size();
+//    }
+//    else{
+//        qDebug()<<"nothing found! FIFF_MNE_NCOL";
+//    }
+
+//    FiffTag::SPtr t_pTag5;
+//    //Matrix<int, Dynamic, Dynamic> ncol_eeg;
+//    fiffb_fwds[1]->find_tag(this, FIFF_MNE_NCOL, t_pTag3);
+//    if(t_pTag3){
+//        qDebug()<<"Tag found! FIFF_MNE_NCOL";
+//        //ncol_eeg = t_pTag5->toIntMatrix();
+//        //qDebug()<<ncol_eeg(0,0);
+//        //qDebug()<<ncol_eeg.size();
+//    }
+//    else{
+//        qDebug()<<"nothing found! FIFF_MNE_NCOL";
+//    }
+
+//    FiffTag::SPtr t_pTag6;
+//    QString colnames_meg;
+//    fiffb_fwds[0]->find_tag(this, FIFF_MNE_COL_NAMES, t_pTag2);
+//    if(t_pTag2){
+//        qDebug()<<"Tag found! FIFF_MNE_COL_NAMES";
+//        colnames_meg = t_pTag6->toString();
+//        if (!colnames_meg.isEmpty())
+//            mat.colnames_meg = split_name_list(colnames_meg);
+
+//        qDebug()<<colnames_meg;
+//    }
+//    else{
+//        qDebug()<<"nothing found! FIFF_MNE_COL_NAMES";
+//    }
+
+//    FiffTag::SPtr t_pTag7;
+//    QString colnames_eeg;
+//    fiffb_fwds[1]->find_tag(this, FIFF_MNE_COL_NAMES, t_pTag3);
+//    if(t_pTag3){
+//        qDebug()<<"Tag found! FIFF_MNE_COL_NAMES";
+//        colnames_eeg = t_pTag7->toString();
+//        qDebug()<<colnames_eeg;
+//    }
+//    else{
+//        qDebug()<<"nothing found! FIFF_MNE_COL_NAMES";
+//    }
+
+    return true;
+}
+
+//=============================================================================================================
 
 bool FiffStream::read_meas_info_base(const FiffDirNode::SPtr& p_Node, FiffInfoBase& p_InfoForward)
 {
